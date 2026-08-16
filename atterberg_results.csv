@@ -1,0 +1,10 @@
+source_pdf,page,mg_sample_no,sample_id,sample_description,liquid_limit,plastic_limit,plasticity_index,linear_shrinkage_pct,non_plastic,a_line_pi_at_this_ll,above_a_line,classification_zone
+S26240-1_Reports__03_06_26_.pdf,3,S116199,HA2_0.4-0.8,"Sandy Silty CLAY, trace of gravel",54.0,20.0,34.0,13.5,False,24.8,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,6,S116200,HA3_0.4-0.8,"Sandy Silty CLAY, trace of gravel",43.0,19.0,24.0,10.5,False,16.8,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,9,S116201,ABH2_1.0-2.0,"Silty Clayey SAND, trace of gravel",31.0,12.0,19.0,7.5,False,8.0,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,12,S116202,ABH5_0.13-1.5,"Sandy Silty CLAY, trace of gravel",30.0,13.0,17.0,9.0,False,7.3,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,15,S116203,ABH8_0.48-1.1,"Silty Clayey SAND, trace of gravel",27.0,13.0,14.0,6.0,False,5.1,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,18,S116204,ABH2_3.5-3.95,Silty Clayey SAND with gravel,33.0,17.0,16.0,7.5,False,9.5,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,21,S116205,ABH3_2.0-3.0,Silty Clayey SAND with gravel,28.0,13.0,15.0,7.0,False,5.8,True,CLAY
+S26240-1_Reports__03_06_26_.pdf,24,S116206,ABH4_3.0-3.4,Silty Clayey SAND with gravel,,,,,True,,,Non-Plastic
+S26240-1_Reports__03_06_26_.pdf,28,S116208,ABH6_0.5-1.5,"Silty SAND, trace of gravel",,,,,True,,,Non-Plastic
