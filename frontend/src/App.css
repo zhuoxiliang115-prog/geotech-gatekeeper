@@ -1,0 +1,84 @@
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  color: #555;
+  margin-top: -0.5rem;
+}
+
+.upload-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1.5rem 0;
+}
+
+.upload-form button {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.upload-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.error {
+  color: #b00020;
+  font-weight: 600;
+}
+
+.summary {
+  color: #333;
+}
+
+.result-section {
+  margin: 2rem 0;
+}
+
+.result-section h2 {
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 0.25rem;
+}
+
+.result-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: #fafafa;
+}
+
+.result-card dl {
+  display: grid;
+  grid-template-columns: minmax(180px, max-content) 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.result-card dt {
+  font-weight: 600;
+  color: #444;
+}
+
+.result-card dd {
+  margin: 0;
+}
+
+.raw-json {
+  margin-top: 2rem;
+}
+
+.raw-json pre {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
