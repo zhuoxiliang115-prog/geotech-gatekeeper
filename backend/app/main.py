@@ -3,6 +3,7 @@ import io
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import calculations
 from .parsers.dispatch import process_pdf
 
 app = FastAPI(title="Geotech Lab Data API")
@@ -20,6 +21,24 @@ def health():
     return {"status": "ok"}
 
 
+def _attach_atterberg_calculations(rows: list) -> None:
+    """PI = LL - PL, shown as a worked example next to the lab's own
+    reported PI (a cross-check, not a replacement for it - the lab value
+    stays the source of truth in classification_zone etc.)."""
+    for row in rows:
+        ll, pl = row.get("liquid_limit"), row.get("plastic_limit")
+        if ll is None or pl is None:
+            row["calculations"] = None
+            continue
+        row["calculations"] = {
+            "plasticity_index": {
+                "formula": "PI = LL - PL",
+                "inputs": {"ll": ll, "pl": pl},
+                "output": calculations.plasticity_index(ll, pl),
+            }
+        }
+
+
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
@@ -34,11 +53,8 @@ async def upload_pdf(file: UploadFile = File(...)):
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Failed to parse PDF: {exc}") from exc
 
+    _attach_atterberg_calculations(result["atterberg_results"])
+
     result["filename"] = file.filename
-    result["pages_parsed"] = (
-        len(result["emerson_results"])
-        + len(result["psd_results"])
-        + len(result["atterberg_results"])
-        + len(result["unrecognized_pages"])
-    )
+    result["pages_parsed"] = result.pop("total_pages")
     return result
