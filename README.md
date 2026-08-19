@@ -2,14 +2,22 @@
 
 See `CLAUDE.md` for the project overview, `reference/geotech-webapp-buildplan.md`
 for the full architecture and build plan, and `reference/charts-and-calculations-spec.md`
-for the chart/calculation formulas and threshold tables the parsers and
-`backend/app/calculations.py` implement. This covers the backend build so
-far: a FastAPI backend that parses Emerson, Atterberg, PSD, SMDD, CBR,
-Point Load, and chemical COA (ALS/Envirolab) reports out of uploaded PDFs,
-plus a calculation engine for PI, point load size correction, AS 2159
-durability classes, and ECe soil salinity - and a React frontend that
-uploads a PDF and shows the raw parsed JSON as a review step. No charts,
-database, or auth yet.
+for the chart/calculation formulas and threshold tables the parsers,
+`backend/app/calculations.py`, and the frontend charts implement.
+
+- **Backend:** FastAPI, parses Emerson, Atterberg, PSD, SMDD, CBR, Point
+  Load, and chemical COA (ALS/Envirolab) reports out of uploaded PDFs, plus
+  a calculation engine for PI, point load size correction, AS 2159
+  durability classes, and ECe soil salinity.
+- **Frontend:** React + Vite + Recharts. Upload a PDF and see, per test
+  type: raw extracted values, a chart matching the source PDF's style,
+  calculation steps + plain-language explanation, and the raw JSON
+  response. AS 2159 classification and ECe salinity take a manual
+  per-sample input (Soil Condition A/B, salinity Multiplication Factor)
+  since neither can be auto-detected from the lab data - entering them
+  recomputes the classification live in the browser.
+
+No database or auth yet.
 
 ## Backend (FastAPI)
 
@@ -30,9 +38,12 @@ The API is now at `http://localhost:8000` (docs at `/docs`). Endpoints:
   `point_load_results`, `chemical_coa_results`, and `unrecognized_pages` for
   any page whose title didn't match a known parser (flagged for manual
   entry, per CLAUDE.md's review-step convention). `atterberg_results` rows
-  also carry a `calculations` block (formula, inputs, output) - the pattern
-  Phase 2 will extend to the other calculated values once the manual inputs
-  they need (Soil Condition A/B, salinity Multiplication Factor) have a UI.
+  also carry a `calculations` block (formula, inputs, output). AS 2159
+  classes and ECe salinity aren't in this response - they need the manual
+  Soil Condition A/B and Multiplication Factor inputs, so the frontend
+  computes them client-side (`frontend/src/calculations.js`, a hand-kept
+  port of the relevant parts of `backend/app/calculations.py`) once the
+  user enters them.
 
 ### Parsers
 
@@ -97,11 +108,25 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Pick a PDF and click "Upload & Parse" to see
-the extracted results per report type, plus the raw JSON response. This is
+Open `http://localhost:5173`. Pick a PDF and click "Upload & Parse" to see,
+per test type: raw extracted values → chart → calculation steps +
+explanation, plus the raw JSON response in a collapsible section. This is
 the "here's what we extracted" review step from CLAUDE.md — there's no
 database yet, so nothing is saved; it's just a way to see the parser's
-output. No charts yet, per the current build step's scope.
+output.
+
+`frontend/src/components/` has one component per chart type
+(`PsdChart.jsx`, `AtterbergChart.jsx`, etc.) plus the shared
+`CalculationExplanation.jsx` (formula/inputs/output/explanation, reused
+across every test type) and per-type `*Section.jsx` wrappers that combine
+them. `frontend/src/theme.js` holds the chart color tokens (a validated
+categorical palette plus a single blue as the default series color,
+matching the existing PDF reports' style). SMDD and CBR intentionally show
+a labeled summary instead of a fitted/drawn curve - the source PDFs render
+those charts as vector graphics with no extractable data points (SMDD has
+discrete markers but no reliable way to recover their coordinates; CBR is
+a continuous line with no discrete points at all), so there's nothing real
+to plot without fabricating a curve shape.
 
 The frontend expects the backend at `http://localhost:8000` by default;
 override with a `VITE_API_BASE_URL` env var (e.g. in `frontend/.env.local`)
@@ -109,15 +134,13 @@ if needed.
 
 ## What's not built yet
 
-No database, no persisted review/commit step, no chart engine, no
-calculation-explanation UI, no manual-input fields for Soil Condition (A/B)
-or the salinity Multiplication Factor (both required before AS 2159 classes
-or ECe salinity can be computed for real chemical COA results - Phase 2),
-no wiring of `calculations` blocks into the frontend, and no borehole log
-parsing or auto-comment engine. `reference/geotech-webapp-buildplan.md` has
-the original suggested build order; `reference/charts-and-calculations-spec.md`
+No database or persisted review/commit step - everything is recomputed
+fresh on each upload, and per-sample inputs (Soil Condition A/B, salinity
+MF) reset if you re-upload. No borehole log parsing or auto-comment
+engine. No Soil Condition A/B auto-detection (needs borehole groundwater
+depth data that doesn't exist yet - the spec is explicit this must stay
+manual until then). `reference/geotech-webapp-buildplan.md` has the
+original suggested build order; `reference/charts-and-calculations-spec.md`
 scopes the chart/calculation work explicitly (ISS is out of scope by
-request, and SMDD/CBR curve *data points* aren't extracted - those charts
-render as vector graphics in the PDF with no underlying data table, unlike
-PSD's sieve table, so there's nothing to parse there beyond the summary
-values each report already prints).
+request, and SMDD/CBR curve *data points* aren't extracted or charted -
+see the Frontend section above).

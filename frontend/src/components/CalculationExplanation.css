@@ -1,0 +1,70 @@
+.calc-explanation {
+  background: #f5f7fa;
+  border: 1px solid #e1e0d9;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.calc-formula {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: #0b0b0b;
+  margin-bottom: 0.5rem;
+}
+
+.calc-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0 0 0.5rem;
+}
+
+.calc-input-row {
+  display: flex;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.calc-input-row dt {
+  color: #52514e;
+}
+
+.calc-input-row dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #0b0b0b;
+}
+
+.calc-output {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.5rem;
+}
+
+.calc-output-arrow {
+  color: #2a78d6;
+  font-weight: 700;
+}
+
+.calc-output-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  color: #0b0b0b;
+}
+
+.calc-explanation-text {
+  color: #52514e;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+}
+
+.calc-note {
+  color: #898781;
+  font-size: 0.82rem;
+  font-style: italic;
+  margin: 0.35rem 0 0;
+}

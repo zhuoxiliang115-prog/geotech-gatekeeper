@@ -1,0 +1,60 @@
+.salinity-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.salinity-table th,
+.salinity-table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid #e1e0d9;
+  text-align: right;
+}
+
+.salinity-table th:first-child,
+.salinity-table td:first-child {
+  text-align: left;
+}
+
+.salinity-table th {
+  color: #898781;
+  font-weight: 600;
+}
+
+.salinity-table input[type='number'] {
+  width: 70px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.mf-reference {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.mf-reference summary {
+  cursor: pointer;
+  color: #2a78d6;
+  font-weight: 600;
+}
+
+.mf-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.mf-table th,
+.mf-table td {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid #e1e0d9;
+  text-align: left;
+}
+
+.mf-table th {
+  color: #898781;
+  font-weight: 600;
+}
