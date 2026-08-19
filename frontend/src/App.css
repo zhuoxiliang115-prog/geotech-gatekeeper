@@ -70,6 +70,19 @@
   margin: 0;
 }
 
+.chart-caption {
+  color: #898781;
+  font-size: 0.82rem;
+  text-align: center;
+  margin: -0.5rem 0 0.5rem;
+}
+
+.calc-explanation-text {
+  color: #52514e;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .raw-json {
   margin-top: 2rem;
 }

@@ -1,0 +1,27 @@
+.aggressivity-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.aggressivity-table th,
+.aggressivity-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #e1e0d9;
+  white-space: nowrap;
+}
+
+.aggressivity-table th {
+  color: #898781;
+  font-weight: 600;
+  text-align: left;
+}
+
+.aggressivity-table td:not(:first-child) {
+  text-align: right;
+}
+
+.aggressivity-table select {
+  font-size: 0.85rem;
+  padding: 0.15rem 0.3rem;
+}

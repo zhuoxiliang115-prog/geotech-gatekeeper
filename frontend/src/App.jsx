@@ -1,67 +1,13 @@
 import { useState } from 'react'
 import { uploadReport } from './api'
+import AtterbergSection from './components/AtterbergSection'
+import CbrSection from './components/CbrSection'
+import ChemicalCoaSection from './components/ChemicalCoaSection'
+import EmersonSection from './components/EmersonSection'
+import PointLoadSection from './components/PointLoadSection'
+import PsdSection from './components/PsdSection'
+import SmddSection from './components/SmddSection'
 import './App.css'
-
-function ReportSection({ title, rows, renderRow }) {
-  if (!rows || rows.length === 0) return null
-  return (
-    <section className="result-section">
-      <h2>{title} ({rows.length})</h2>
-      {rows.map((row, i) => (
-        <div className="result-card" key={i}>
-          {renderRow(row)}
-        </div>
-      ))}
-    </section>
-  )
-}
-
-function EmersonRow({ row }) {
-  return (
-    <dl>
-      <dt>Sample</dt>
-      <dd>{row.mg_sample_no ?? '—'} ({row.sample_id ?? '—'})</dd>
-      <dt>Description</dt>
-      <dd>{row.sample_description ?? '—'}</dd>
-      <dt>Raw value: Emerson Class</dt>
-      <dd>{row.emerson_class ?? '—'}</dd>
-      <dt>Lookup applied: dispersion table</dt>
-      <dd>{row.dispersion_potential ?? '—'}</dd>
-      <dt>Notes</dt>
-      <dd>{row.notes ?? '—'}</dd>
-    </dl>
-  )
-}
-
-function AtterbergRow({ row }) {
-  return (
-    <dl>
-      <dt>Sample</dt>
-      <dd>{row.mg_sample_no ?? '—'} ({row.sample_id ?? '—'})</dd>
-      <dt>Raw values: LL / PL / PI</dt>
-      <dd>
-        {row.liquid_limit ?? '—'} / {row.plastic_limit ?? '—'} / {row.plasticity_index ?? '—'}
-      </dd>
-      <dt>Formula applied: A-line PI = 0.73(LL-20)</dt>
-      <dd>{row.a_line_pi_at_this_ll ?? '—'}</dd>
-      <dt>Classification</dt>
-      <dd>{row.classification_zone ?? '—'}</dd>
-    </dl>
-  )
-}
-
-function PsdRow({ row }) {
-  return (
-    <dl>
-      <dt>Sample</dt>
-      <dd>{row.mg_sample_no ?? '—'} ({row.sample_id ?? '—'})</dd>
-      <dt>Readings (sieve mm → % passing)</dt>
-      <dd>
-        {row.readings.map((r) => `${r.sieve_mm}→${r.passing_pct}%`).join(', ')}
-      </dd>
-    </dl>
-  )
-}
 
 function App() {
   const [file, setFile] = useState(null)
@@ -114,21 +60,13 @@ function App() {
             Parsed {result.pages_parsed} page(s) from <strong>{result.filename}</strong>
           </p>
 
-          <ReportSection
-            title="Emerson Class"
-            rows={result.emerson_results}
-            renderRow={(row) => <EmersonRow row={row} />}
-          />
-          <ReportSection
-            title="Atterberg / Plasticity Index"
-            rows={result.atterberg_results}
-            renderRow={(row) => <AtterbergRow row={row} />}
-          />
-          <ReportSection
-            title="Particle Size Distribution"
-            rows={result.psd_results}
-            renderRow={(row) => <PsdRow row={row} />}
-          />
+          <EmersonSection results={result.emerson_results} />
+          <AtterbergSection results={result.atterberg_results} />
+          <PsdSection results={result.psd_results} />
+          <SmddSection results={result.smdd_results} />
+          <CbrSection results={result.cbr_results} />
+          <PointLoadSection results={result.point_load_results} />
+          <ChemicalCoaSection results={result.chemical_coa_results} />
 
           {result.unrecognized_pages?.length > 0 && (
             <section className="result-section">
