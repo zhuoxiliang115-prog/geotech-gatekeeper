@@ -1,0 +1,22 @@
+.atterberg-chart-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.atterberg-chart-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: auto;
+}
+
+.chart-side-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 1px #c3c2b7;
+}
