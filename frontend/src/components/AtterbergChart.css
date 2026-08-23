@@ -11,12 +11,8 @@
   height: auto;
 }
 
-.chart-side-legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.chart-side-legend-marker {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
-  border: 1px solid #fff;
-  box-shadow: 0 0 0 1px #c3c2b7;
 }

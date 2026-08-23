@@ -38,6 +38,39 @@ const REGION_LABELS = [
   { text: 'ML or OL', ll: 34, pi: 3 },
 ]
 
+// Cycled per sample alongside color, so identity doesn't rely on hue alone
+// (matches the firm's reference chart, which gives each series its own
+// marker shape as well as its own color).
+const MARKER_SHAPES = ['diamond', 'square', 'triangle', 'circle']
+
+function markerShape(index) {
+  return MARKER_SHAPES[index % MARKER_SHAPES.length]
+}
+
+function Marker({ shape, cx, cy, size, fill, ...handlers }) {
+  const common = { fill, stroke: '#fff', strokeWidth: 1, ...handlers }
+  switch (shape) {
+    case 'diamond':
+      return (
+        <polygon
+          points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`}
+          {...common}
+        />
+      )
+    case 'square':
+      return <rect x={cx - size * 0.85} y={cy - size * 0.85} width={size * 1.7} height={size * 1.7} {...common} />
+    case 'triangle':
+      return (
+        <polygon
+          points={`${cx},${cy - size * 1.1} ${cx + size * 1.05},${cy + size * 0.75} ${cx - size * 1.05},${cy + size * 0.75}`}
+          {...common}
+        />
+      )
+    default:
+      return <circle cx={cx} cy={cy} r={size} {...common} />
+  }
+}
+
 export default function AtterbergChart({ samples }) {
   const points = samples.filter((s) => s.liquid_limit != null && s.plasticity_index != null)
   const [hovered, setHovered] = useState(null)
@@ -171,14 +204,13 @@ export default function AtterbergChart({ samples }) {
 
         {/* sample points */}
         {points.map((s, i) => (
-          <circle
+          <Marker
             key={s.mg_sample_no ?? i}
+            shape={markerShape(i)}
             cx={X(s.liquid_limit)}
             cy={Y(s.plasticity_index)}
-            r={5}
+            size={5.5}
             fill={categoricalColor(i)}
-            stroke="#fff"
-            strokeWidth={1}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
           />
@@ -198,7 +230,9 @@ export default function AtterbergChart({ samples }) {
       <div className="chart-side-legend">
         {points.map((s, i) => (
           <div className="chart-side-legend-item" key={s.mg_sample_no ?? i}>
-            <span className="chart-side-legend-dot" style={{ background: categoricalColor(i) }} />
+            <svg className="chart-side-legend-marker" viewBox="0 0 14 14" aria-hidden="true">
+              <Marker shape={markerShape(i)} cx={7} cy={7} size={5} fill={categoricalColor(i)} />
+            </svg>
             {s.sample_id ?? s.mg_sample_no ?? `Sample ${i + 1}`}
           </div>
         ))}
