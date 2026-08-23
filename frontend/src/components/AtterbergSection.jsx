@@ -13,6 +13,8 @@ export default function AtterbergSection({ results }) {
           <dl>
             <dt>Sample</dt>
             <dd>{row.mg_sample_no ?? '—'} ({row.sample_id ?? '—'})</dd>
+            <dt>Description</dt>
+            <dd>{row.sample_description ?? '—'}</dd>
             <dt>Raw values: LL / PL / PI</dt>
             <dd>{row.liquid_limit ?? '—'} / {row.plastic_limit ?? '—'} / {row.plasticity_index ?? '—'}</dd>
             <dt>Linear Shrinkage (separate lab measurement)</dt>

@@ -36,10 +36,18 @@ export default function AtterbergChart({ samples }) {
   const points = samples.filter((s) => s.liquid_limit != null && s.plasticity_index != null)
   if (points.length === 0) return null
 
+  // Legend needs one entry per sample (so each dot's identity is readable)
+  // plus A-line/U-line - reserve enough height that it doesn't feel cramped
+  // as the sample count grows, matching the PDF's own labeled-point style.
+  const legendItemCount = points.length + 2
+  const legendRows = Math.ceil(legendItemCount / 4)
+  const legendHeight = legendRows * 24 + 12
+  const chartHeight = 360 + legendHeight
+
   return (
     <>
-    <ResponsiveContainer width="100%" height={400}>
-      <ComposedChart margin={{ top: 16, right: 24, bottom: 24, left: 8 }}>
+    <ResponsiveContainer width="100%" height={chartHeight}>
+      <ComposedChart margin={{ top: 8, right: 24, bottom: 24, left: 8 }}>
         <CartesianGrid stroke={INK.gridline} strokeDasharray="2 2" />
         <XAxis
           dataKey="ll"
@@ -61,7 +69,11 @@ export default function AtterbergChart({ samples }) {
           formatter={(value, name) => [value, name]}
           labelFormatter={() => ''}
         />
-        <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 12, color: INK.secondary }} />
+        <Legend
+          verticalAlign="top"
+          height={legendHeight}
+          wrapperStyle={{ fontSize: 12, color: INK.secondary, lineHeight: '24px', paddingBottom: 8 }}
+        />
 
         <Line data={A_LINE} dataKey="pi" stroke={INK.muted} strokeWidth={1.5} dot={false} isAnimationActive={false} name="A-line" />
         <Line data={U_LINE} dataKey="pi" stroke={INK.muted} strokeWidth={1} strokeDasharray="4 3" dot={false} isAnimationActive={false} name="U-line" />
@@ -83,24 +95,22 @@ export default function AtterbergChart({ samples }) {
           />
         ))}
 
-        <Scatter
-          data={points.map((s, i) => ({ ...s, ll: s.liquid_limit, pi: s.plasticity_index, fill: categoricalColor(i) }))}
-          dataKey="pi"
-          name="Sample"
-          shape={(props) =>
-            props.payload ? (
-              <circle cx={props.cx} cy={props.cy} r={6} fill={props.payload.fill} stroke="#fff" strokeWidth={1} />
-            ) : null
-          }
-          label={({ x, y, payload }) =>
-            payload ? (
+        {points.map((s, i) => (
+          <Scatter
+            key={`point-${s.mg_sample_no ?? i}`}
+            data={[{ ll: s.liquid_limit, pi: s.plasticity_index }]}
+            dataKey="pi"
+            name={s.sample_id ?? s.mg_sample_no ?? `Sample ${i + 1}`}
+            fill={categoricalColor(i)}
+            shape={(props) => <circle cx={props.cx} cy={props.cy} r={6} fill={categoricalColor(i)} stroke="#fff" strokeWidth={1} />}
+            label={({ x, y }) => (
               <text x={x + 8} y={y - 8} fontSize={11} fill={INK.primary}>
-                {`LL ${payload.ll} / PI ${payload.pi}`}
+                {`LL ${s.liquid_limit} / PI ${s.plasticity_index}`}
               </text>
-            ) : null
-          }
-          isAnimationActive={false}
-        />
+            )}
+            isAnimationActive={false}
+          />
+        ))}
       </ComposedChart>
     </ResponsiveContainer>
     <p className="chart-caption">

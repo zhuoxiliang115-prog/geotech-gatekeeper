@@ -10,8 +10,14 @@ export default function PsdChart({ samples }) {
   if (allSizes.length === 0) return null
   const domain = [Math.min(...allSizes), Math.max(...allSizes)]
 
+  // Reserve enough legend height for however many samples there are, so it
+  // doesn't wrap into a cramped block as the sample count grows.
+  const legendRows = samples.length > 1 ? Math.ceil(samples.length / 4) : 0
+  const legendHeight = legendRows > 0 ? legendRows * 24 + 12 : 0
+  const chartHeight = 340 + legendHeight
+
   return (
-    <ResponsiveContainer width="100%" height={360}>
+    <ResponsiveContainer width="100%" height={chartHeight}>
       <LineChart margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
         <CartesianGrid stroke={INK.gridline} strokeDasharray="2 2" />
         <XAxis
@@ -32,7 +38,13 @@ export default function PsdChart({ samples }) {
           tick={{ fill: INK.muted, fontSize: 12 }}
         />
         <Tooltip formatter={(value, name) => [`${value}%`, name]} labelFormatter={(v) => `${v} mm`} />
-        {samples.length > 1 && <Legend />}
+        {samples.length > 1 && (
+          <Legend
+            verticalAlign="bottom"
+            height={legendHeight}
+            wrapperStyle={{ fontSize: 12, color: INK.secondary, lineHeight: '24px', paddingTop: 8 }}
+          />
+        )}
         {samples.map((sample, i) => (
           <Line
             key={sample.mg_sample_no ?? i}
