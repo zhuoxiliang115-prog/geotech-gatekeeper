@@ -9,8 +9,8 @@ It has two parts that behave differently, and the rest of this document keeps
 them apart:
 
 - **Terminology & classification** (Part 3) is fixed. It's transcribed from
-  AECOM's own AS1726-2017 description sheets. It doesn't change unless AECOM
-  issues a new revision of that document.
+  AECOM's own AS1726-2017 description sheets (current revision: 28/10/2025).
+  It doesn't change unless AECOM issues a new revision of that document.
 - **Structural completeness** (Part 2) is derived by observation from the
   example logs actually on file. It's a description of what today's examples
   do, not a specification handed down by a standard - AECOM's description
@@ -26,22 +26,22 @@ them apart:
 
 | Source | Informed |
 |---|---|
-| `reference/logs/Chowder bay logs combined.pdf`, pages 1-6 ("Soil & Rock Description Sheets", AECOM, AS1726-2017, revision 30/6/2017) | Part 3 (Terminology & classification reference), in full |
+| `reference/borehole-logs/AECOM-soil-rock-description-sheets.pdf` ("AECOM Soil and Rock Logging Explanatory Notes and Abbreviations", Revision Date 28/10/2025 - the current revision) | Part 3 (Terminology & classification reference), in full |
 | All 15 PDFs in `reference/logs/` (Borehole, Cored Borehole, Pavement Dip, and Test Pit logs from the PRUP/TfNSW Picton Road project, the WSM/Sydney Water Willoughby project, Heathcote Road, Alex Canal, and Chowder Bay DFI) | Part 2 (Structural completeness checklist), by cross-referencing header fields and table columns actually present |
 | `backend/app/parsers/borehole_log.py` and its build notes (this repo's prior Claude Code session) | Part 4's "not rule-checkable without a parser" callouts, and the known parser-limitation notes threaded through Part 2 |
 
-**Note on the description-sheets file location:** the request that produced
-this document named the source as
-`reference/borehole-logs/AECOM-soil-rock-description-sheets.pdf`. No such
-path exists in the repository. The content it describes - AECOM's 6-page
-"Soil & Rock Description Sheets" - is instead the first 6 pages of
-`reference/logs/Chowder bay logs combined.pdf` (confirmed by title match on
-every page: "Soil & Rock Description Sheets", AECOM letterhead, "Soil and
-Rock Description 2017 (incorporating AS1726-2017), Revision Date 30/6/2017").
-That's the source actually used. If a standalone copy is added later at the
-originally-named path (or anywhere else), point the regeneration process at
-it instead - the content should be identical since it's the same firm
-document, but confirm the revision date hasn't changed.
+**Revision history of this source:** this document was first built against
+the first 6 pages of `reference/logs/Chowder bay logs combined.pdf` - AECOM's
+"Soil & Rock Description Sheets", Revision Date 30/6/2017 - because that was
+the only copy on hand at the time, and the path originally requested
+(`reference/borehole-logs/AECOM-soil-rock-description-sheets.pdf`) didn't
+exist in the repository yet. A dated 28/10/2025 copy was subsequently
+supplied at that exact path, and Part 3 below has been rewritten against it.
+**The two revisions are not just a date change** - see the changelog at the
+top of Part 3 for what's actually different. The 2017 copy embedded in
+`Chowder bay logs combined.pdf` is left in place as-is (it's part of that
+PDF's own content, not something this project owns to edit) but is now
+superseded - don't transcribe from it again.
 
 **Process used:**
 
@@ -69,6 +69,17 @@ document, but confirm the revision date hasn't changed.
 3. Every field or column claimed "required" in Part 2 was seen at 100% (or
    noted otherwise) across its type's surveyed pages - not assumed from a
    single example.
+4. **Correction made during this revision:** the Pavement Dip and Test Pit
+   field-test token counts in step 2 were originally computed with plain
+   `if token in text` substring checks, which silently false-matched "BS"
+   inside "OBSERVATIONS" and "DS" inside "SANDSTONE" - both came back
+   showing 100%/high percentages that weren't real. Re-run with
+   word-boundary/colon-anchored patterns (see §2.3, §2.4); the
+   Borehole/Cored Borehole SPT survey used a colon-anchored pattern from the
+   start and wasn't affected. Lesson for next time: never survey this
+   template's `extract_text()` output with a bare substring check - anchor
+   every token to a boundary or a following colon, or better, use
+   `borehole_log.py`'s own coordinate-based column extraction instead.
 
 **How to refresh this document when new example logs arrive:**
 
@@ -85,8 +96,14 @@ future session:
    listed "required" should be downgraded (with a note of which example
    broke the pattern); anything new appearing consistently should be added.
 3. Part 3 only needs to change if AECOM issues a new revision of the
-   description sheets (check the revision date on the source file's footer -
-   currently 30/6/2017) - it is not affected by new *log* examples.
+   description sheets (check the revision date on
+   `reference/borehole-logs/AECOM-soil-rock-description-sheets.pdf`'s
+   footer - currently 28/10/2025) - it is not affected by new *log*
+   examples. When it does change, diff the new copy page-by-page against
+   this document's Part 3 rather than assuming only the date moved - the
+   28/10/2025 revision changed several abbreviations and table structures
+   from the 30/6/2017 one with no other signal that anything besides the
+   date had changed.
 4. Re-check whether new examples introduce a fifth log type beyond
    Borehole/Cored Borehole/Pavement Dip/Test Pit (all 15 files on hand as of
    this writing map onto exactly those four - see the file-to-type table in
@@ -114,7 +131,7 @@ Confirmed log types, from every file currently in `reference/logs/`:
 | `WSM_BH12_20260819.pdf` … `WSM_BH15_20260720.pdf` | Borehole, Cored Borehole | WSM_BH12-15 |
 | `Alex Canal.pdf` | Borehole | (sampled: same AECOM template, no new type) |
 | `Heathcote.pdf` | Borehole, Cored Borehole | BH01 (sampled) |
-| `Chowder bay logs combined.pdf` | Borehole, Cored Borehole, plus the description-sheet pages (1-6) | 19 Cored Borehole + 16 Borehole sheets |
+| `Chowder bay logs combined.pdf` | Borehole, Cored Borehole, plus the description-sheet pages (1-6, superseded 30/6/2017 copy - see `reference/borehole-logs/` for the current one) | 19 Cored Borehole + 16 Borehole sheets |
 
 Two more page types appear throughout but carry no header fields or table
 data, so they're out of scope for the field/column checklist below - they're
@@ -248,15 +265,31 @@ arrive, since Borehole's split suggests this field isn't universally
 guaranteed.
 
 **Table columns:** METHOD · SUPPORT · (BLOWS DCP PER 100mm) · GROUND WATER ·
-FIELD TESTS/SAMPLES (sample prefix seen: `C:` with a depth range - a cut/core
-sample) · RL (AHD, m) · DEPTH (m) · GRAPHIC LOG · CLASSIFICATION SYMBOL ·
-MATERIAL DESCRIPTION · MOISTURE CONDITION/CONSISTENCY-RELATIVE DENSITY ·
-ADDITIONAL OBSERVATIONS (Geological Origin). Structurally the same column
-set as Borehole, with DCP (Dynamic Cone Penetration) in place of SPT - a
-Pavement Dip never carries an SPT token (0/34 surveyed), and PP (Pocket
-Penetrometer) and BS (Bulk Sample) tokens appear on 100% and 100% of
-surveyed pages respectively - these, not SPT, are this type's standard field
-tests.
+FIELD TESTS/SAMPLES (sample prefixes seen: `C:` with a depth range on 33/34
+- **Core Sample**, per §3.16's `C / CONCC` entry - and `B:` on 13/34 -
+**Bulk Sample**) · RL (AHD, m) · DEPTH (m) · GRAPHIC LOG · CLASSIFICATION
+SYMBOL · MATERIAL DESCRIPTION · MOISTURE CONDITION/CONSISTENCY-RELATIVE
+DENSITY · ADDITIONAL OBSERVATIONS (Geological Origin). Structurally the
+same column set as Borehole, with a DCP column (Dynamic Cone Penetration)
+in place of SPT's; PID readings appear on 5/34 pages.
+
+A DCP/PP token count is deliberately not given here: an earlier pass at this
+survey searched surveyed pages' plain `extract_text()` output for bare
+substrings ("PP", "DCP", "BS", "DS") and reported 100% hits for several -
+which turned out to be false positives (`"BS"` inside `"OBSERVATIONS"`,
+`"DS"` inside `"SANDSTONE"`), not real field-test labels; re-run with
+word-boundary-anchored patterns, `PP` and `DCP` matched **zero** surveyed
+pages, `B:`/`D:`/`C:` matched cleanly. This isn't evidence DCP/PP readings
+don't occur - the DCP/PP column caption is confirmed present via the
+rotated-header word-position extraction used elsewhere in this document -
+it's evidence that `extract_text()`'s reading order on this template is too
+unreliable for plain substring search to safely confirm or deny per-row
+data, the same limitation `borehole_log.py` was built to work around by
+reading word coordinates directly instead. Only the colon-anchored sample
+prefixes (`C:`, `B:`, `D:`, `SPT:`, `ES:`) are trustworthy from a plain-text
+survey; anything else in this section's table-column list should be
+confirmed against `borehole_log.py`'s own column extraction, not
+re-surveyed with `extract_text()` substring search.
 
 **Depth-axis calibration:** unlike Test Pit and Cored Borehole, Pavement
 Dip's depth column sits inside the parser's existing column range and
@@ -278,13 +311,21 @@ OBSERVATIONS (Geological Origin)" caption. No Bearing field (a hand-dug pit
 has no drilled bearing/inclination to record).
 
 **Table columns:** METHOD · SUPPORT · GROUND WATER · (BLOWS DCP PER 100mm) ·
-FIELD TESTS/SAMPLES (sample prefix seen: `B:` with a depth range - Bulk
-sample) · RL (AHD, m) · DEPTH (m) · GRAPHIC LOG · CLASSIFICATION SYMBOL ·
-MATERIAL DESCRIPTION · MOISTURE CONDITION/CONSISTENCY-RELATIVE DENSITY ·
-ADDITIONAL OBSERVATIONS (Geological Origin). Same column set as Pavement
-Dip; PP and BS tokens both appear on 100% of surveyed pages, DS
-(disturbed sample) on 11/21 (52%), PID on 9/21 (43%) - situational, not
-required. 0/21 carry an SPT token.
+FIELD TESTS/SAMPLES (sample prefix `B:` with a depth range - Bulk Sample -
+on 19/21 surveyed pages) · RL (AHD, m) · DEPTH (m) · GRAPHIC LOG ·
+CLASSIFICATION SYMBOL · MATERIAL DESCRIPTION · MOISTURE
+CONDITION/CONSISTENCY-RELATIVE DENSITY · ADDITIONAL OBSERVATIONS (Geological
+Origin). Same column set as Pavement Dip; PID readings appear on 9/21
+(43%). No `SPT:`/`D:`/`C:` prefix matched on any surveyed page.
+
+Note (see §2.3): an earlier pass reported PP and "BS" both at 100% and "DS"
+at 11/21 - all three were false positives from unbounded substring search
+(`"BS"` inside `"OBSERVATIONS"`, `"DS"` inside `"SANDSTONE"`, and a PP match
+that didn't reproduce under a word-boundary check). Re-verified: `B:` is the
+only sample-type prefix confirmed present by a reliable colon-anchored
+search; PP/DCP column data could not be confirmed or denied by plain-text
+search on this template and would need the coordinate-based extraction
+approach `borehole_log.py` uses instead.
 
 **Known parser limitation:** the DEPTH column sits noticeably further right
 on Test Pit pages (tick-value words at x≈193) than on Borehole/Pavement Dip
@@ -298,19 +339,75 @@ for strata text are unavailable.
 ## 3. Terminology and classification reference
 
 Source: AECOM "Soil and Rock Logging Explanatory Notes and Abbreviations",
-Soil and Rock Description 2017 (incorporating AS1726-2017), Revision Date
-30/6/2017. All tables below are transcribed as printed; nothing here is
-inferred from the log examples.
+Revision Date **28/10/2025** (`reference/borehole-logs/AECOM-soil-rock-
+description-sheets.pdf`). All tables below are transcribed as printed;
+nothing here is inferred from the log examples.
 
-**A note on vintage:** the source states AECOM logs prepared *before* July
-2017 followed AS1726-1993, which classifies fine- vs coarse-grained soils
-differently (on percentage passing 75 micron, not fines behaviour) and
-gives different results for materials AS1726-2017 would call e.g. "sandy
-CLAY" but 1993 called "silty SAND". Every example log currently in
-`reference/logs/` is dated 2025-2026, so this doesn't currently bite - but
-if an older or third-party log is ever added as an example, its
-classification must not be checked against the 2017 rules below without
-first confirming which revision it was logged under.
+**Changelog from the 30/6/2017 revision** (what this document was built
+against until this revision was supplied - see Part 1's revision-history
+note): this is not a cosmetic date bump. Concretely:
+
+- §3.4 Moisture Condition's table is restructured - cohesive soils now get
+  distinct per-sub-symbol descriptions (previously shared, generic text).
+- §3.11's Modified Casagrande Chart now explicitly draws and labels a 'U'
+  line with an accompanying interpretive note (new).
+- §3.13 Rock Material Strength (renamed from "Rock Strength") drops its
+  three explanatory notes (in-situ moisture caveat, anisotropy caveat, the
+  "UCS ≈ 10-20× Is₍₅₀₎" ratio) in favour of a pointer to AS1726-2017 §6.2.4.1;
+  the numeric bands themselves are unchanged.
+- §3.15's Defect Planarity symbol for "planar" changed from **PL to PR**;
+  Defect Roughness's "rough" changed from **ro to RF** (all roughness/
+  planarity symbols also went uppercase). The Defect Type table gained
+  **DL** and **DB** (Drill Lift, Handling Break, alongside MB) and
+  reassigned the seam symbols: **SS now means Sheared Seam** (previously a
+  generic "Soil Seam, origin undetermined" fallback), with **CS**
+  (Crushed Seam) and **IS** (Infilled Seam) replacing the old CR/NF. A new
+  "vein" suffix convention and a generalised-defect-count-and-spacing
+  suffix convention were both added.
+- §3.15's Infill/Coating table replaced generic "co" (coated) with **CT**
+  ("Coating, ≤1mm thick") and refined "vn"→**VN** to "Veneer, too thin to
+  measure"; added a footnote that infill/coating of soil should use soil
+  group symbols (e.g. "CH"), not a separate descriptive word.
+- §3.16's Field Sampling table renamed **DS→D**, **BS→B**, **E→ES**, and
+  **HV→FV/HV**; added **C / CONCC** (Core Sample / Concrete Core Sample -
+  this resolves the `C:` prefix seen in Pavement Dip logs in Part 2, which
+  had no matching entry in the 2017 table). N*/RW/HW no longer appear.
+  Notably, the real example logs in `reference/logs/` already print `D`,
+  `ES`, and `B` - **not** the 2017 sheet's `DS`/`E`/`BS` - so the new
+  revision's names match observed practice better than the one this
+  document was first built against.
+- §3.16's Drilling Method table renamed **ADV→AD** and **B/T→V/T**
+  ("Blank Bit" retired in favour of "V Bit"); dropped **RC**; added **E**
+  (Excavator) and **VE** (Hydro-vacuum Excavation) - filling a real gap,
+  since Test Pit logs' "Plant: 5t Excavator" field had no corresponding
+  drilling-method symbol in the 2017 table.
+- The 2017 sheet's paragraph explaining that pre-July-2017 AECOM logs
+  followed AS1726-1993 (a different fine/coarse classification boundary) is
+  **not present** in the 28/10/2025 revision - see the vintage note below.
+- "Symbol" columns are relabelled "Abbreviation" throughout - cosmetic, but
+  applied to every symbol table.
+- Confirmed **unchanged**: Plasticity↔LL (§3.2), Colour abbreviations
+  (§3.3), Geological Origin (§3.5, heading gained "- Soils"), Grain size/
+  shape (§3.8), Relative Density and Consistency numeric bands (§3.9,
+  §3.10), the full soil classification chart's group symbols/criteria
+  (§3.11), rock type/grain size/defect-spacing/igneous/duricrust tables
+  (§3.12), Degree of Weathering/Alteration (§3.14), Vesicularity,
+  Cementation/Duricrust grade, Carbonate rules, Water symbols, and Drilling
+  Support (all in §3.15/§3.16's area).
+
+**A note on vintage:** the 2017 sheet stated that AECOM logs prepared
+*before* July 2017 followed AS1726-1993, which classifies fine- vs
+coarse-grained soils differently (on percentage passing 75 micron, not
+fines behaviour) and gives different results for materials AS1726-2017
+would call e.g. "sandy CLAY" but 1993 called "silty SAND". **The current
+(28/10/2025) revision no longer states this** - the paragraph was removed,
+not just superseded. The underlying historical fact presumably still holds
+for any genuinely pre-2017 log, but the current standard gives no explicit
+guidance on it any more. Every example log currently in `reference/logs/`
+is dated 2025-2026, so this doesn't currently bite - but if an older or
+third-party log is ever added as an example, don't assume either revision's
+classification rules apply without first confirming which AS1726 vintage it
+was actually logged under.
 
 ### 3.1 Description order convention
 
@@ -327,14 +424,34 @@ strength, weathering/alteration, mass defect spacing, and defect
 descriptions are each recorded in their own columns.
 
 **Defect description** order (rock only): Type; dip/direction; planarity;
-roughness; infill/coating; colour. Example: `P,30/145°,PL,ro,1mm,CH,gy` =
-a parting, 30° dip, 145° dip direction, planar, rough, 1mm infill of grey
-high-plasticity clay. A healed defect is prefixed "healed" before the type.
+roughness; infill/coating; other descriptors (e.g. colour). Example:
+`P, 30/145°, PR, RF, CT CH, 1 mm, gy` = a parting, 30° dip, 145° dip
+direction, planar, rough surfaces, a ≤1mm coating of high-plasticity clay,
+grey. (The 2017 revision's equivalent example was
+`P,30/145°,PL,ro,1mm,CH,gy` - same content, but using the retired
+planarity/roughness/infill symbols PL/ro/co; see §3.15 for the current
+symbol set.) A healed defect is suffixed "healed"; an intrusive feature or
+mineral growth thicker than a cemented joint (>1mm) is suffixed "vein".
 
-Defect thickness distinctions: ≤10mm = *parting* or *joint*; 10-100mm
-perpendicular to the defect = *seam* or *zone*; >100mm, or a defect
-intersecting the full core width = logged as a new material strata, not a
-defect.
+Defect thickness distinctions: <10mm = *parting* or *joint*; ≥10mm and
+<100mm perpendicular to the defect = *seam* or *zone*; ≥100mm, or a defect
+intersecting the full core width for more than 100mm = logged as a new
+material strata, not a defect. Generalised defect sets (grouped rather than
+logged individually) note their count and spacing at the end of the
+description, e.g. "…, x2, 30 mm spacing".
+
+**Field tests and in-situ tests:** recorded in the relevant log column
+using the abbreviations in §3.16. As of the 28/10/2025 revision, field
+descriptions of consistency/density and rock strength are **updated based
+on laboratory test results** before being presented on the log - a change
+from the 30/6/2017 revision, which stated the opposite (field results were
+transferred "and not modified to coincide with laboratory results",
+explicitly meant as an independent estimate). This matters for Phase 2: a
+logged consistency/density term that doesn't match the raw field-test
+correlation (§3.9, §3.10) is no longer necessarily an independent
+cross-check succeeding or failing on its own terms - it may already reflect
+a lab-informed revision the field reading alone wouldn't predict. Treat a
+mismatch as a prompt for review, not a defect (see Part 4).
 
 ### 3.2 Plasticity ↔ Liquid Limit
 
@@ -360,11 +477,20 @@ modifiers. Borderline colours combine two terms (e.g. "red-brown").
 
 ### 3.4 Moisture condition
 
-| Term | Symbol | Cohesive | Granular |
-|---|---|---|---|
-| Dry | D | Hard/friable/powdery, very dry of plastic limit | Cohesion-less, free running |
-| Moist | M, w<PL, w~PL, w>PL | Cool, darkened, moulds, w between PL and LL as indicated | Cool, darkened, tends to cohere |
-| Wet | W, w~LL, w>LL | Cool, dark, usually weakened, free water, w at/above LL as indicated | Cool, darkened, cohere, free water |
+Restructured in the 28/10/2025 revision: cohesive soils now get a distinct
+description per w-subcategory; granular soils get one generic description
+per moisture state (previously the reverse - both shared similar generic
+text, and the "cool, darkened, tends to cohere" language now attributed to
+Granular was previously Cohesive's).
+
+| Term | Cohesive sub-state | Cohesive description | Granular symbol | Granular description |
+|---|---|---|---|---|
+| Dry | (n/a) | — | D | Non-cohesive and free running |
+| Moist | w<PL | Hard and friable or powdery (dry) | M | Soil feels cool, darkened in colour, tends to cohere |
+| Moist | w≈PL | Soils can be moulded at a moisture content approximately equal to the plastic limit | M | (as above) |
+| Moist | w>PL | Soils usually weakened and free water forms on hands when handling | M | (as above) |
+| Wet | w≈LL | Wet, near liquid limit | W | Soil feels cool, darkened in colour, tends to cohere, free water |
+| Wet | w>LL | Wet, wet of liquid limit | W | (as above) |
 
 ### 3.5 Geological origin
 
@@ -491,16 +617,23 @@ behaviour, not fines percentage - see §3 vintage note):
 
 The A-line (Modified Casagrande Chart) divides CL/CI/CH from ML/OL and
 MH/OH: **PI = 0.73×(LL − 20)**. "CL-ML" borderline zone: LL≤35, PI 4-7
-(matches `AtterbergChart.jsx`'s existing implementation). Secondary/minor
-descriptors for fine-grained soils mirror the coarse-grained convention
-("sandy"/"gravelly" >30%, "with sand/gravel" 15-30%, "trace sand/gravel"
-≤15%); secondary fine-grained soil not otherwise described is "clayey
-SILT".
+(matches `AtterbergChart.jsx`'s existing implementation). The chart also
+draws and labels a **'U' line** (as of the 28/10/2025 revision, with an
+explicit note that wasn't present in 2017): *"The 'U' line is an
+approximate upper bound for most natural soils. If data plots above the U
+line, it may represent unusual/problem soil behaviour, or unreliable data
+and should be considered carefully."* This matches
+`AtterbergChart.jsx`'s existing shaded zone above the U-line - it's now
+citable as an explicit rule from the standard itself, not just inferred
+chart geometry. Secondary/minor descriptors for fine-grained soils mirror
+the coarse-grained convention ("sandy"/"gravelly" >30%, "with sand/gravel"
+15-30%, "trace sand/gravel" ≤15%); secondary fine-grained soil not
+otherwise described is "clayey SILT".
 
 **Boundary classification:** soils with characteristics of two groups use a
-combined symbol, e.g. `GP-GC` (gravel, 5-12% clay fines) or `CI-CH` (medium-
-to-high borderline plasticity) - this is the same dual-symbol format the
-example logs actually use (`CI-CH`, `CL-ML`, `SC-`, etc.).
+combined symbol, e.g. `GP-GC` (gravel, >5% and ≤12% clay fines) or `CI-CH`
+(medium-to-high borderline plasticity) - this is the same dual-symbol
+format the example logs actually use (`CI-CH`, `CL-ML`, `SC-`, etc.).
 
 ### 3.12 Rock type, grain size, and structure
 
@@ -532,11 +665,15 @@ GLASS/OBSIDIAN (glassy), APLITE (light quartz/feldspar veins), PORPHYRY
 grade: DI (massive/hardspan, >90% continuous), DII (vuggy/patchy, 50-90%),
 DIII (nodular/fragmental, <50%, logged as soil).
 
-### 3.13 Rock strength
+### 3.13 Rock Material Strength
 
-| Term | Symbol | UCS (MPa) | Is₍₅₀₎ (MPa) | Field guide |
+(Renamed from "Rock Strength" in the 28/10/2025 revision; "Symbol" row
+relabelled "Abbreviation". Numeric bands and field-guide text below are
+unchanged from 2017.)
+
+| Term | Abbreviation | UCS (MPa) | Is₍₅₀₎ (MPa) | Field guide |
 |---|---|---|---|---|
-| Soil | soil | ≤0.6 | – | logged as soil, using consistency |
+| Soil | – | ≤0.6 | – | logged as soil, using consistency |
 | Very Low | VL | >0.6 ≤2 | >0.03 ≤0.1 | Crumbles under firm pick blow; peeled with knife |
 | Low | L | >2 ≤6 | >0.1 ≤0.3 | Scored with knife; 1-3mm indent with pick |
 | Medium | M | >6 ≤20 | >0.3 ≤1 | Readily scored with knife; core breaks by hand with difficulty |
@@ -544,10 +681,16 @@ DIII (nodular/fragmental, <50%, logged as soil).
 | Very High | VH | >60 ≤200 | >3 ≤10 | Hand specimen breaks with pick after >1 blow |
 | Extremely High | EH | >200 | >10 | Requires many pick blows |
 
-Notes: strength should use UCS on near-in-situ-moisture material; Is₍₅₀₎ only
-where UCS isn't practical; UCS is typically 10-20× Is₍₅₀₎ but the multiplier
-varies widely by rock type - **not** a fixed conversion factor to rule-check
-against (see Part 4).
+The 2017 revision's three explanatory notes here (use UCS on near-in-situ-
+moisture material; anisotropy caveat; "UCS is typically 10-20× Is₍₅₀₎ but
+the multiplier varies widely by rock type - not a fixed conversion factor")
+are **not present** in the 28/10/2025 revision - it instead just says
+"Refer to Section 6.2.4.1 Rock Material Strength of AS1726-2017 for
+additional details." The underlying caution (don't rule-check a fixed
+UCS:Is₍₅₀₎ ratio) is still sound engineering practice and Part 4 keeps
+citing it, but it's no longer stated on the sheet itself as of this
+revision - if AS1726-2017 §6.2.4.1 itself is ever added as a reference
+source, defer to its exact wording over this document's restatement.
 
 ### 3.14 Degree of weathering / alteration
 
@@ -566,29 +709,47 @@ depth - the distinction matters because their spatial distribution differs.
 
 ### 3.15 Rock defects
 
-| Symbol | Term | Definition |
+**Changed in the 28/10/2025 revision - do not use the old symbols below.**
+Most importantly, **SS changed meaning**: in 2017 it was a generic "Soil
+Seam, origin can't be determined" fallback; as of 28/10/2025 it means
+Sheared Seam specifically, and the generic fallback concept is gone
+entirely.
+
+| Abbreviation | Term | Definition |
 |---|---|---|
 | P | Parting | Surface/crack parallel to bedding/cleavage, little/no tensile strength |
 | J | Joint | Surface/crack, no shear displacement, not parallel to bedding |
 | S | Sheared Surface | Smooth/polished/slickensided, shows shear displacement |
 | SZ | Sheared Zone | Roughly parallel boundaries cut by close joints/shears, lenticular blocks |
-| MB | Mechanical Break | Not natural - drilling, testing, storage |
-| SH | Sheared Seam | Roughly parallel boundaries cut by close joints/cleavage |
-| CR | Crushed Seam | Roughly parallel boundaries, mainly angular host-rock fragments |
-| NF | Infilled Seam | Distinct parallel boundaries, infill from soil migration into joints |
-| EW | Extremely Weathered Seam | Soil substance weathered from host rock |
-| SS | Soil Seam | Used where origin (SH/CR/NF/EW) can't be determined |
+| MB / DL / DB | Mechanical Break / Drill Lift / Handling Break | Not natural - drilling, testing, storage (three distinct symbols, one shared definition) |
+| SS | Sheared Seam | Roughly parallel boundaries cut by close joints/cleavage |
+| CS | Crushed Seam | Roughly parallel boundaries, disorientated/angular host-rock fragments |
+| IS | Infilled Seam | Distinct parallel boundaries, infill from soil migration into joints |
+| EW | Extremely Weathered Seam | Soil substance weathered from host rock; often has gradational boundaries |
+
+(2017→2025 renames: SH→SS, CR→CS, NF→IS. The old catch-all "SS = Soil Seam,
+origin undetermined" has no equivalent in the current revision.)
 
 Sheared surfaces/zones/seams and crushed seams are "generally faults in
-geological terms". Healed defects are prefixed "healed".
+geological terms". Healed defects are suffixed "healed"; a mineral growth
+thicker than a cemented joint (>1mm), or an intrusive feature, is suffixed
+"vein" (both new/clarified conventions as of this revision).
 
-**Planarity:** PL planar / CU curved / UN undulating / ST stepped / IR
-irregular. **Roughness:** vr very rough / ro rough / sm smooth / po polished
-/ sl slickensided.
+**Planarity:** PR planar / CU curved / UN undulating / ST stepped / IR
+irregular. (2017's symbol for planar was **PL**, not PR - retired.)
 
-**Infill/coating:** cn clean / sn stained / vn veneered / co coated / op
-open-voided / Ca calcium carbonate / Fe iron oxide / Ch chlorite / Qz
-quartz.
+**Roughness:** VR very rough / RF rough / SM smooth / PO polished / SL
+slickensided. (2017 used lowercase vr/ro/sm/po/sl, with "rough" as **ro**,
+not RF - retired.)
+
+**Infill/coating:** CN clean / SN stained / **VN** veneer (too thin to
+measure, may be patchy) / **CT** coating (≤1mm thick) / OP open/voided / Ca
+calcium carbonate / Fe iron oxide / Ch chlorite / Qz quartz. Infill/veneers/
+coatings *of soil* should use the soil classification group symbol instead
+of a descriptive word, e.g. "SW" or "CH" (new guidance as of this revision).
+(2017's table used lowercase symbols and a generic "co = coated" in place of
+CT; "vn = veneered" was generic where VN is now the specific "too thin to
+measure" case.)
 
 **Vesicularity:** D dense (negligible porosity) / NV non-vesicular (<10%) /
 SV slightly vesicular (10-20%) / HV highly vesicular (>20%).
@@ -600,34 +761,57 @@ sedimentary rocks use the rock-type name directly (§3.12); 50-90% prefixed
 
 ### 3.16 Field sampling and testing abbreviations
 
-| Symbol | Meaning | | Symbol | Meaning |
+**Rock core indices:** Total Core Recovery (TCR) and Rock Quality
+Designation (RQD) are calculated over the length of a core run as defined
+in AS1726-2017. Solid Core Recovery (SCR) is calculated similarly to RQD
+but includes full-width pieces less than 100mm long. (This explanatory
+paragraph is new as of the 28/10/2025 revision - the 2017 sheet listed
+TCR/SCR/RQD as bare abbreviations with no explanation.)
+
+**Changed in the 28/10/2025 revision:** DS→**D** (Disturbed Sample), BS→**B**
+(Bulk Sample), E→**ES** (Environmental Sample), HV→**FV/HV** (now "Field
+Hand Vane Shear"). New: **C / CONCC** (Core Sample / Concrete Core Sample -
+this is the `C:` prefix seen on Pavement Dip logs in Part 2, unexplained
+until this revision). Dropped: N* (SPT with sample collected), RW/HW (SPT
+rod/hammer weight only, N<1). **The example logs in `reference/logs/`
+already print D/ES/B, not the 2017 sheet's DS/E/BS** - i.e. real practice
+matches this revision, not the one this document was first built from.
+
+| Abbreviation | Meaning | | Abbreviation | Meaning |
 |---|---|---|---|---|
 | V | Uncorrected Borehole Vane Shear (kPa), Peak/Residual | | UP | Undisturbed Piston Sample |
-| HV | Uncorrected Hand Vane Shear (kPa), Peak/Residual | | DS | Disturbed Sample |
-| PP | Pocket Penetrometer (kPa) | | BS | Bulk Sample |
-| SPT | Standard Penetration Test | | E | Environmental Sample |
-| N | Uncorrected SPT blow count / 300mm | | RQD | Rock Quality Designation (%) |
-| N* | SPT with sample collected | | SCR | Solid Core Recovery (%) |
-| RW | SPT rod weight only (N<1) | | TCR | Total Core Recovery (%) |
-| HW | SPT rod + hammer weight (N<1) | | DCP | Dynamic Cone Penetration (blows/100mm) |
-| HB | SPT Hammer Bouncing | | PSP | Perth Sand Penetrometer (blows/150mm) |
-| FPM | Field Permeability | | PID | Photoionization Detector |
-| Lu | Lugeon/Packer Test (L/m/min) | | U(X) | Undisturbed Sample, X mm diameter |
-| Is₍₅₀₎(A/D/I) | Axial/Diametral/Irregular Point Load Strength Index (MPa) | | | |
+| FV/HV | Uncorrected Field Hand Vane Shear (kPa), Peak/Residual | | C / CONCC | Core Sample / Concrete Core Sample |
+| PP | Pocket Penetrometer (kPa) | | D | Disturbed Sample |
+| SPT | Standard Penetration Test | | B | Bulk Sample |
+| N | Uncorrected SPT blow count / 300mm | | ES | Environmental Sample |
+| HB | SPT Hammer Bouncing | | RQD | Rock Quality Designation (%) |
+| FPM | Field Permeability | | SCR | Solid Core Recovery (%) |
+| Lu | Lugeon/Packer Test (L/m/min) | | TCR | Total Core Recovery (%) |
+| Is₍₅₀₎(A/D/I) | Axial/Diametral/Irregular Point Load Strength Index (MPa) | | DCP | Dynamic Cone Penetration (blows/100mm) |
+| U(X) | Undisturbed Sample, X mm diameter | | PSP | Perth Sand Penetrometer (blows/150mm) |
+| | | | PID | Photoionization Detector |
 
 **Water:** ▼ static water level · ▽ water level during drilling · ▷ inflow ·
-◁ outflow · ◄ complete water loss.
+◁ outflow · ◄ complete water loss. (Unchanged.)
 
-**Drilling method:** ADV auger V-bit (100mm) · AS auger screwing · WB wash
-boring · B blank bit* · T tungsten carbide bit* · RR rock roller/tricone ·
-DHH down-hole hammer · PD percussion · CT cable tool · HA hand auger · DT
-diatube (114mm) · NMLC triple-tube core (50mm) · NQ3/HQ3/PQ3 wireline
-triple-tube (45/61/83mm) · NQ/HQ/PQ wireline double-tube (48/64/85mm) · RC
-reverse circulation · CA casing advancer · VC vibro coring · SC sonic coring
-· GP Geoprobe continuous sampling. (*bit symbol suffixes the method, e.g.
-ADV = auger drilling with V-bit.)
+**Drilling method** (changed in the 28/10/2025 revision: ADV→**AD**, the
+separate B "Blank Bit" and T "Tungsten Carbide Bit" symbols merged into
+**V/T** "V Bit/Tungsten Carbide Bit", **RC** "Reverse Circulation" dropped,
+**E** "Excavator" and **VE** "Hydro-vacuum Excavation" added - filling a
+real gap, since Test Pit logs' "Plant: 5t Excavator" header field had no
+matching drilling-method symbol in the 2017 table):
+
+AD auger drilling* · AS auger screwing · WB wash boring · V/T V bit/
+tungsten carbide bit* · RR rock roller/tricone · DHH down-hole hammer · PD
+percussion · CT cable tool · HA hand auger · DT diatube (114mm) · NMLC
+triple-tube core (50mm) · NQ3/HQ3/PQ3 wireline triple-tube (45/61/83mm) ·
+NQ/HQ/PQ wireline double-tube (48/64/85mm) · CA casing advancer · VC vibro
+coring · SC sonic coring · E excavator · VE hydro-vacuum excavation · GP
+Geoprobe continuous sampling. (*bit symbol suffixes the method, e.g. AD/V =
+auger drilling with V-bit - previously written "ADV".)
 
 **Drilling support:** U unsupported · C casing · M mud · W water.
+(Unchanged.)
 
 ---
 
@@ -659,14 +843,17 @@ ADV = auger drilling with V-bit.)
   same sample.
 - **Defect description field order and format** (§3.1): a syntactic check
   that a defect description follows Type;dip/direction;planarity;roughness;
-  infill/coating;colour, not a check on whether the description is
-  geologically apt.
+  infill/coating;other descriptors, not a check on whether the description
+  is geologically apt. Check against the current (28/10/2025) symbol set -
+  PR/RF/CT/SS/CS/IS, not the retired PL/ro/co/SH/CR/NF (§3.15).
 - **Boundary-symbol format** (§3.11): dual symbols follow the `XX-YY`
   pattern seen in both the standard and the examples.
 - **Rock strength band consistency**: given a UCS or Is₍₅₀₎ value, the
   strength term (§3.13) it implies is computable and comparable to the
-  logged term - with the explicit caveat from §3.13 that the UCS:Is₍₅₀₎
-  ratio itself varies too widely to rule-check directly.
+  logged term - with the caveat that the UCS:Is₍₅₀₎ ratio itself varies too
+  widely by rock type to rule-check directly (stated explicitly in the
+  2017 sheet; the 28/10/2025 sheet drops the explanation but the caution
+  still holds - see §3.13).
 
 ### 4.2 Judgment-based (LLM-assisted, report with stated uncertainty)
 
@@ -684,7 +871,13 @@ ADV = auger drilling with V-bit.)
 - **Whether SPT-N vs. consistency/density term correlation looks
   reasonable** (§3.9, §3.10) - AECOM's own sheet calls this "a rough field
   guide" affected by grain size, angularity, overburden, moisture, fines,
-  and cementation. A mismatch is a prompt to look closer, not a defect.
+  and cementation. A mismatch is a prompt to look closer, not a defect - and
+  as of the 28/10/2025 revision, field descriptions are stated to be
+  *updated* based on lab results (§3.1), where the 2017 revision said the
+  opposite (explicitly independent). A persisting mismatch may now be more
+  worth flagging than it used to be, since policy says the two should be
+  reconciled - but this is a stated policy, not confirmed practice on any
+  given log, so it stays a judgment call rather than a hard rule.
 - **Whether a geological-origin term (FILL, ALLUVIUM, RESIDUAL...) is
   plausible** given the described material, depth, and site context.
 - **Cross-sheet strata continuity** ("Log continued on/from" pages) -
@@ -717,4 +910,7 @@ ADV = auger drilling with V-bit.)
 - **Any log logged under AS1726-1993** (see the vintage note in Part 3) -
   none of the current examples are, but this document's classification
   rules would misjudge one if it appeared, since 1993 draws the fine/coarse
-  boundary differently.
+  boundary differently. The current (28/10/2025) description sheet no
+  longer even mentions this distinction, so there's no standing guidance to
+  fall back on if one turns up - it would need to be flagged for a human to
+  confirm which AS1726 vintage applies before any rule-checking runs.
