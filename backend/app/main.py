@@ -4,6 +4,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import calculations
+from .parsers.borehole_log import process_log_pdf
 from .parsers.dispatch import process_pdf
 
 app = FastAPI(title="Geotech Lab Data API")
@@ -54,6 +55,25 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=422, detail=f"Failed to parse PDF: {exc}") from exc
 
     _attach_atterberg_calculations(result["atterberg_results"])
+
+    result["filename"] = file.filename
+    result["pages_parsed"] = result.pop("total_pages")
+    return result
+
+
+@app.post("/upload-log")
+async def upload_log_pdf(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    try:
+        result = process_log_pdf(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Failed to parse PDF: {exc}") from exc
 
     result["filename"] = file.filename
     result["pages_parsed"] = result.pop("total_pages")
