@@ -3,11 +3,15 @@ checked against the worked examples and threshold tables in
 reference/charts-and-calculations-spec.md."""
 
 from app.calculations import (
+    a_line_pi,
     as2159_concrete_class,
     as2159_steel_class,
     ece_salinity,
+    grading_curve_cu_cc,
     plasticity_index,
     point_load_is50,
+    u_line_pi,
+    uscs_fine_grained_zone,
 )
 
 
@@ -107,3 +111,71 @@ def test_ece_salinity_highly_saline():
     ece, label = ece_salinity(3000, 8)
     assert ece == 24.0
     assert label == "Highly saline"
+
+
+# ---------- AS1726 A-line / U-line / USCS zone (borehole log standard §3.11) ----------
+
+
+def test_a_line_pi_matches_atterberg_chart_formula():
+    # frontend/src/components/AtterbergChart.jsx: PI = 0.73 * (LL - 20)
+    assert a_line_pi(40) == 0.73 * (40 - 20)
+
+
+def test_u_line_pi_matches_atterberg_chart_formula():
+    assert u_line_pi(40) == 0.9 * (40 - 8)
+
+
+def test_uscs_zone_cl_ml_borderline():
+    assert uscs_fine_grained_zone(30, 5) == "CL-ML"
+
+
+def test_uscs_zone_above_a_line_low_ll():
+    # LL=30, A-line PI at LL=30 is 0.73*10=7.3; PI=15 is above it, LL<35
+    assert uscs_fine_grained_zone(30, 15) == "CL or OL"
+
+
+def test_uscs_zone_above_a_line_intermediate_ll():
+    assert uscs_fine_grained_zone(45, 25) == "CI or OI"
+
+
+def test_uscs_zone_above_a_line_high_ll():
+    assert uscs_fine_grained_zone(63, 37) == "CH or OH"
+
+
+def test_uscs_zone_below_a_line_low_ll():
+    assert uscs_fine_grained_zone(34, 3) == "ML or OL"
+
+
+def test_uscs_zone_below_a_line_high_ll():
+    assert uscs_fine_grained_zone(60, 9) == "MH or OH"
+
+
+# ---------- Grading curve Cu/Cc ----------
+
+
+def test_grading_curve_cu_cc_well_graded_sand():
+    readings = [
+        {"sieve_mm": 19.0, "passing_pct": 100},
+        {"sieve_mm": 9.5, "passing_pct": 90},
+        {"sieve_mm": 4.75, "passing_pct": 70},
+        {"sieve_mm": 2.36, "passing_pct": 50},
+        {"sieve_mm": 1.18, "passing_pct": 30},
+        {"sieve_mm": 0.6, "passing_pct": 15},
+        {"sieve_mm": 0.3, "passing_pct": 8},
+        {"sieve_mm": 0.15, "passing_pct": 3},
+        {"sieve_mm": 0.075, "passing_pct": 1},
+    ]
+    result = grading_curve_cu_cc(readings)
+    assert result is not None
+    assert result["cu"] > 6  # well-graded sand criterion
+    assert 1 <= result["cc"] <= 3
+
+
+def test_grading_curve_cu_cc_returns_none_when_out_of_range():
+    # every reading passes >10%, so D10 can't be interpolated
+    readings = [
+        {"sieve_mm": 19.0, "passing_pct": 100},
+        {"sieve_mm": 9.5, "passing_pct": 80},
+        {"sieve_mm": 4.75, "passing_pct": 50},
+    ]
+    assert grading_curve_cu_cc(readings) is None
