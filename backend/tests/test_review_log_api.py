@@ -25,7 +25,7 @@ def _stub_judgment_layer(monkeypatch):
 
     def _fake_review(parsed_page, client=None):
         if parsed_page.get("page_type") != "log":
-            return {"findings": [], "error": None}
+            return {"findings": [], "error": None, "usage": None}
         return {
             "findings": [
                 {
@@ -39,6 +39,12 @@ def _stub_judgment_layer(monkeypatch):
                 }
             ],
             "error": None,
+            "usage": {
+                "input_tokens": 8500,
+                "output_tokens": 120,
+                "cache_creation_input_tokens": 8400,
+                "cache_read_input_tokens": 0,
+            },
         }
 
     monkeypatch.setattr(judgment, "review_page_judgment", _fake_review)
@@ -72,6 +78,23 @@ def test_review_log_basic_shape():
     assert "rule_findings" in first_page
     assert "judgment_findings" in first_page
     assert first_page["judgment_error"] is None
+    assert first_page["judgment_usage"]["input_tokens"] == 8500
+
+
+def test_review_log_reports_model_and_aggregate_usage():
+    resp = _upload_log("PRUP_AC Logs.pdf")
+    body = resp.json()
+
+    assert body["judgment_model"] == "claude-sonnet-5"
+    # 16 log pages, each stubbed at the same usage figures - exact totals,
+    # not an estimate.
+    log_pages = [p for p in body["pages_reviewed"] if p["page_type"] == "log"]
+    assert body["judgment_usage_total"] == {
+        "input_tokens": 8500 * len(log_pages),
+        "output_tokens": 120 * len(log_pages),
+        "cache_creation_input_tokens": 8400 * len(log_pages),
+        "cache_read_input_tokens": 0,
+    }
 
 
 def test_review_log_findings_are_tagged_by_category():

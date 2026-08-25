@@ -13,6 +13,7 @@ around the API call behaves correctly, not the model's judgment quality.
 """
 
 import json
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -20,9 +21,12 @@ import pytest
 from app.borehole_review import judgment
 
 
-def _fake_response(findings):
+def _fake_response(findings, usage=None):
     text_block = SimpleNamespace(type="text", text=json.dumps({"findings": findings}))
-    return SimpleNamespace(content=[text_block])
+    usage = usage or SimpleNamespace(
+        input_tokens=8500, output_tokens=120, cache_creation_input_tokens=8400, cache_read_input_tokens=0
+    )
+    return SimpleNamespace(content=[text_block], usage=usage)
 
 
 class _FakeMessages:
@@ -61,7 +65,7 @@ _SAMPLE_PAGE = {
 
 def test_review_page_judgment_returns_empty_for_non_log_page():
     result = judgment.review_page_judgment({"page_type": "photo_report"}, client=_FakeClient())
-    assert result == {"findings": [], "error": None}
+    assert result == {"findings": [], "error": None, "usage": None}
 
 
 def test_review_page_judgment_parses_valid_structured_response():
@@ -90,7 +94,16 @@ def test_review_page_judgment_parses_valid_structured_response():
 def test_review_page_judgment_handles_empty_findings():
     client = _FakeClient(response=_fake_response([]))
     result = judgment.review_page_judgment(_SAMPLE_PAGE, client=client)
-    assert result == {"findings": [], "error": None}
+    assert result == {
+        "findings": [],
+        "error": None,
+        "usage": {
+            "input_tokens": 8500,
+            "output_tokens": 120,
+            "cache_creation_input_tokens": 8400,
+            "cache_read_input_tokens": 0,
+        },
+    }
 
 
 def test_review_page_judgment_degrades_on_api_failure():
@@ -98,6 +111,38 @@ def test_review_page_judgment_degrades_on_api_failure():
     result = judgment.review_page_judgment(_SAMPLE_PAGE, client=client)
     assert result["findings"] == []
     assert "no credentials configured" in result["error"]
+    assert result["usage"] is None
+
+
+def test_review_page_judgment_returns_exact_usage_from_real_response():
+    # not a chars/4 estimate - the exact usage block from the (fake, but
+    # shaped like a real) API response.
+    usage = SimpleNamespace(
+        input_tokens=8917, output_tokens=243, cache_creation_input_tokens=0, cache_read_input_tokens=8400
+    )
+    client = _FakeClient(response=_fake_response([], usage=usage))
+    result = judgment.review_page_judgment(_SAMPLE_PAGE, client=client)
+    assert result["usage"] == {
+        "input_tokens": 8917,
+        "output_tokens": 243,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8400,
+    }
+
+
+def test_review_page_judgment_logs_usage(caplog):
+    client = _FakeClient(response=_fake_response([]))
+    with caplog.at_level(logging.INFO, logger="app.borehole_review.judgment"):
+        judgment.review_page_judgment(_SAMPLE_PAGE, client=client)
+    assert any("borehole_review.judgment" in r.message for r in caplog.records)
+    assert any("input_tokens=8500" in r.message for r in caplog.records)
+
+
+def test_model_is_sonnet_5():
+    # Switched from the skill-default Opus 5 to Sonnet 5 for cost, per an
+    # explicit user decision - revert here if a future quality
+    # read-through finds it doesn't hold up.
+    assert judgment.MODEL == "claude-sonnet-5"
 
 
 def test_review_page_judgment_uses_json_schema_output_config():

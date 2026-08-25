@@ -136,6 +136,7 @@ async def review_log(
                 "rule_findings": rule_findings,
                 "judgment_findings": judgment_result["findings"],
                 "judgment_error": judgment_result["error"],
+                "judgment_usage": judgment_result["usage"],
             }
         )
 
@@ -146,9 +147,24 @@ async def review_log(
             continue
         holes.setdefault(hole_id, []).append(page)
 
+    judgment_usage_total = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+    }
+    for page in pages_reviewed:
+        usage = page["judgment_usage"]
+        if usage is None:
+            continue
+        for key in judgment_usage_total:
+            judgment_usage_total[key] += usage[key]
+
     return {
         "filename": file.filename,
         "pages_reviewed": pages_reviewed,
+        "judgment_model": judgment.MODEL,
+        "judgment_usage_total": judgment_usage_total,
         "holes": holes,
         "lab_reports_provided": {
             "atterberg_samples": len(lab_results["atterberg"]),

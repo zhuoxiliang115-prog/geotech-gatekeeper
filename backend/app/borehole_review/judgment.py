@@ -17,16 +17,30 @@ not something to invoke speculatively or in a loop without the caller
 knowing. Output is structured JSON only (via output_config.format), not
 free-form prose, so it can be rendered distinctly from rules.py's
 higher-confidence findings.
+
+Model: claude-sonnet-5, not the skill-default Opus 5 - switched after a
+cost/quality comparison (see the session's manual read-through notes) at
+the user's explicit request. Revert MODEL below to "claude-opus-5" if a
+future read-through finds Sonnet's judgment quality doesn't hold up.
+
+Every request logs its exact token usage (input/output/cache
+read/write, from the real API response's `usage` field - not an
+estimate) via the standard `logging` module, and returns the same figures
+in the result dict under "usage", so real per-review cost is visible
+without guessing from a chars/4 heuristic.
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 
 import anthropic
 
+logger = logging.getLogger(__name__)
+
 CATEGORY = "judgment_based"
-MODEL = "claude-opus-5"
+MODEL = "claude-sonnet-5"
 
 STANDARD_DOC_PATH = Path(__file__).resolve().parents[3] / "reference" / "borehole-log-standard.md"
 
@@ -144,19 +158,30 @@ def _build_log_summary(parsed_page: dict) -> str:
     return "\n".join(lines)
 
 
+def _usage_dict(usage) -> dict:
+    return {
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
+        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+    }
+
+
 def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None) -> dict:
     """Runs the LLM-assisted judgment layer against one parsed log page.
 
-    Returns {"findings": [...], "error": None} on success, each finding
-    stamped category="judgment_based" plus which of the six §4.2
-    categories and which standard section it addresses. On any API
-    failure, returns {"findings": [], "error": "<message>"} rather than
-    raising - a judgment-layer failure should degrade the review, not
-    crash it, and the caller can report the failure like any other
-    skipped check rather than a 500.
+    Returns {"findings": [...], "error": None, "usage": {...}} on success,
+    each finding stamped category="judgment_based" plus which of the six
+    §4.2 categories and which standard section it addresses. "usage" is
+    the exact token accounting from the real API response (input/output/
+    cache read/cache write), logged at INFO level too - not an estimate.
+    On any API failure, returns {"findings": [], "error": "<message>",
+    "usage": None} rather than raising - a judgment-layer failure should
+    degrade the review, not crash it, and the caller can report the
+    failure like any other skipped check rather than a 500.
     """
     if parsed_page.get("page_type") != "log":
-        return {"findings": [], "error": None}
+        return {"findings": [], "error": None, "usage": None}
 
     try:
         client = client or anthropic.Anthropic()
@@ -173,12 +198,25 @@ def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None
             messages=[{"role": "user", "content": f"Parsed log data to review:\n\n{log_summary}"}],
             output_config={"format": {"type": "json_schema", "schema": _RESPONSE_SCHEMA}},
         )
+        usage = _usage_dict(response.usage)
+        hole_id = (parsed_page.get("header") or {}).get("hole_id")
+        logger.info(
+            "borehole_review.judgment model=%s hole_id=%s input_tokens=%d output_tokens=%d "
+            "cache_creation_input_tokens=%d cache_read_input_tokens=%d",
+            MODEL,
+            hole_id,
+            usage["input_tokens"],
+            usage["output_tokens"],
+            usage["cache_creation_input_tokens"],
+            usage["cache_read_input_tokens"],
+        )
+
         text = next(b.text for b in response.content if b.type == "text")
         raw = json.loads(text)
     except Exception as exc:  # noqa: BLE001 - any API/parsing failure degrades, doesn't crash
-        return {"findings": [], "error": str(exc)}
+        return {"findings": [], "error": str(exc), "usage": None}
 
     findings = []
     for f in raw.get("findings", []):
         findings.append({**f, "category": CATEGORY})
-    return {"findings": findings, "error": None}
+    return {"findings": findings, "error": None, "usage": usage}
