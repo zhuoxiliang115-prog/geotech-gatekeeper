@@ -57,6 +57,26 @@ _SPT_DETAIL_RE = re.compile(r"^(.*?)\s*N\s*=\s*(\S+)\s*$")
 _PID_RE = re.compile(r"PID\s*=\s*([\d.]+)\s*PPM", re.IGNORECASE)
 _IS50_RE = re.compile(r"Is\s*\(?50\)?\s*([DA])\s*=\s*([\d.]+)\s*MPa", re.IGNORECASE)
 _UCS_RE = re.compile(r"UCS\s*=\s*([\d.]+)\s*MPa", re.IGNORECASE)
+# DCP (Dynamic Cone Penetration) readings print as bare blow counts under
+# the "(BLOWS DCP PER 100mm)" column caption - never as the word "DCP"
+# next to a value, same pattern as SPT-N. A single blow exceeding the
+# 100mm increment prints as "blows/mm" (e.g. "22/80"), the DCP equivalent
+# of SPT's "10/50mm HB N=R" refusal notation. See
+# reference/borehole-log-standard.md Part 1 item 5 for how this was
+# originally missed (searched for the label instead of the data shape).
+_DCP_PARTIAL_RE = re.compile(r"^(\d+)/(\d+)$")
+_DCP_FULL_RE = re.compile(r"^\d+$")
+
+# The DEPTH column's tick-value words sit at a different x-position on
+# Cored Borehole and Test Pit pages than on Borehole/Pavement Dip pages -
+# diagnosed in reference/borehole-log-standard.md §2.2/§2.4. Verified
+# directly against real examples (Heathcote.pdf p2 for Cored Borehole,
+# PRUP_TP Logs.pdf p1 for Test Pit) rather than assumed from the caption
+# position alone.
+_DEPTH_COLUMN_RANGES_BY_TYPE = {
+    "Cored Borehole": (125, 141),
+    "Test Pit": (183, 197),
+}
 
 
 def classify_log_page(text: str) -> str:
@@ -132,14 +152,19 @@ def _column_words(words, key):
     return [w for w in words if lo <= w["x0"] <= hi]
 
 
-def _depth_calibration(words):
+def _depth_calibration(words, log_type):
     """Fits a linear map from page-y (top) to borehole depth (m) using the
     depth-axis tick labels (0.0, 1.0, 2.0, ...). Falls back to None if
     fewer than two usable ticks are found, since a page can't be
-    calibrated off a single point."""
+    calibrated off a single point.
+
+    The DEPTH column sits at a different x-position for Cored Borehole and
+    Test Pit pages than for Borehole/Pavement Dip - see
+    _DEPTH_COLUMN_RANGES_BY_TYPE."""
+    lo, hi = _DEPTH_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["depth"])
     ticks = []
-    for w in _column_words(words, "depth"):
-        if _TICK_VALUE_RE.match(w["text"]):
+    for w in words:
+        if lo <= w["x0"] <= hi and _TICK_VALUE_RE.match(w["text"]):
             ticks.append((w["top"], float(w["text"])))
     if len(ticks) < 2:
         return None
@@ -232,6 +257,45 @@ def _extract_field_test_entries(words):
     return entries
 
 
+def _extract_dcp_readings(words, depth_of):
+    """DCP readings have no "LABEL:" prefix (unlike SPT/D/ES/U), so they're
+    a separate scan over the field-tests column rather than a branch of
+    _extract_field_test_entries's label-driven state machine. Depth comes
+    from the row's own y-position via the calibrated depth axis, the same
+    technique _extract_point_load_readings uses, since DCP rows don't
+    print an explicit depth range of their own."""
+    rows = _cluster_rows(_column_words(words, "field_tests"))
+    readings = []
+    for row in rows:
+        if row["top"] <= 200:
+            continue
+        text = row["text"].strip()
+        depth_m = depth_of(row["top"]) if depth_of else None
+
+        m = _DCP_PARTIAL_RE.match(text)
+        if m:
+            readings.append(
+                {
+                    "blows": int(m.group(1)),
+                    "penetration_mm": int(m.group(2)),
+                    "partial_penetration": True,
+                    "depth_m": depth_m,
+                }
+            )
+            continue
+
+        if _DCP_FULL_RE.match(text):
+            readings.append(
+                {
+                    "blows": int(text),
+                    "penetration_mm": 100,
+                    "partial_penetration": False,
+                    "depth_m": depth_m,
+                }
+            )
+    return readings
+
+
 def _extract_point_load_readings(rows):
     """"Is(50) D=1.1 MPa" (etc.) wraps across two or three of this narrow
     column's visual rows ("Is(50)" / "D=1.1 MPa" printed on separate
@@ -286,12 +350,14 @@ def parse_log_page(page) -> dict:
         return result
 
     words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
-    depth_of = _depth_calibration(words)
+    header = parse_log_header(text)
+    depth_of = _depth_calibration(words, header["log_type"])
 
-    result["header"] = parse_log_header(text)
+    result["header"] = header
     result["depth_axis_calibrated"] = depth_of is not None
     result["strata"] = _extract_strata(words, depth_of)
     result["field_test_entries"] = _extract_field_test_entries(words)
+    result["dcp_readings"] = _extract_dcp_readings(words, depth_of)
     readings, remarks = _extract_notes(words, depth_of)
     result["point_load_ucs_readings"] = readings
     result["notes"] = remarks

@@ -120,6 +120,51 @@ def test_parse_log_page_extracts_point_load_readings():
     assert "point_load_is50_a" in types
 
 
+def test_parse_log_page_extracts_dcp_readings_test_pit():
+    result = _parse_page("PRUP_TP Logs.pdf", 1)
+    readings = result["dcp_readings"]
+    assert len(readings) >= 10
+    assert all(r["penetration_mm"] == 100 for r in readings)
+    assert all(not r["partial_penetration"] for r in readings)
+    assert all(isinstance(r["blows"], int) for r in readings)
+
+
+def test_parse_log_page_extracts_dcp_partial_penetration():
+    result = _parse_page("PRUP_PTP Logs.pdf", 1)
+    partials = [r for r in result["dcp_readings"] if r["partial_penetration"]]
+    assert partials
+    reading = partials[0]
+    assert reading["blows"] == 25
+    assert reading["penetration_mm"] == 70
+
+
+def test_parse_log_page_no_dcp_readings_on_cored_borehole():
+    # Cored boreholes use point load/UCS, not DCP - the field-tests column
+    # holds Is(50)/UCS text there instead of bare blow-count integers.
+    result = _parse_page("Heathcote.pdf", 2)
+    assert result["dcp_readings"] == []
+
+
+def test_depth_axis_calibrated_for_cored_borehole():
+    # Regression test for the fix: Cored Borehole's DEPTH column ticks sit
+    # at x≈130, outside the Borehole/Pavement Dip column range - previously
+    # always reported depth_axis_calibrated: false.
+    result = _parse_page("Heathcote.pdf", 2)
+    assert result["header"]["log_type"] == "Cored Borehole"
+    assert result["depth_axis_calibrated"] is True
+    assert result["strata"][0]["depth_from_m"] is not None
+
+
+def test_depth_axis_calibrated_for_test_pit():
+    # Regression test for the fix: Test Pit's DEPTH column ticks sit at
+    # x≈193, outside the Borehole/Pavement Dip column range - previously
+    # always reported depth_axis_calibrated: false.
+    result = _parse_page("PRUP_TP Logs.pdf", 1)
+    assert result["header"]["log_type"] == "Test Pit"
+    assert result["depth_axis_calibrated"] is True
+    assert result["strata"][0]["depth_from_m"] is not None
+
+
 @pytest.mark.parametrize(
     "filename,expected_pages",
     [
