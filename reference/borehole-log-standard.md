@@ -80,6 +80,32 @@ superseded - don't transcribe from it again.
    template's `extract_text()` output with a bare substring check - anchor
    every token to a boundary or a following colon, or better, use
    `borehole_log.py`'s own coordinate-based column extraction instead.
+5. **Second correction, user-flagged after the above:** the DCP ("Dynamic
+   Cone Penetration") figures were *also* wrong even after the substring-bug
+   fix, but for a different reason - the corrected search still checked for
+   the literal word "DCP", which never prints next to a reading (DCP
+   readings are bare integers under the column caption, same pattern as
+   SPT-N). That produced a false "zero DCP readings anywhere", read at the
+   time as "can't confirm from text" rather than recognised as "wrong
+   question asked". Fixed by reading the field-tests column's actual
+   numeric content by word position instead of searching for a label: 9/34
+   Pavement Dip pages and 13/21 Test Pit pages (§2.3, §2.4) do carry DCP
+   data, including a `blows/mm` partial-penetration format (e.g. `22/80`)
+   parallel to SPT's refusal notation. Lesson for next time: when a column's
+   caption names a test but its data rows are bare numbers (as with SPT-N
+   and DCP alike), search for the *shape* of the data (a run of plain
+   integers, or `N/mm`) in that column's coordinates - not for the test
+   name as a text token, which will never appear per-row.
+6. **User-confirmed correction to Part 3's Defect Type table:** the
+   MB/DL/DB/HB row was wrong - three symbols had been merged into one
+   shared definition and HB was missing entirely. Confirmed directly by the
+   user against OpenGround (the software that generates these logs, treated
+   as authoritative over the static AECOM PDF where they conflict): MB, DL,
+   DB, and HB are four separate codes (Mechanical Break / Drill Lift /
+   Drilling Break / Handling Break). Fixed in §3.15. The user also
+   spot-checked Surface Roughness, Surface Shape/Planarity, and Infill/
+   Coating against OpenGround directly and confirmed all three already
+   matched Part 3 exactly - no changes needed there.
 
 **How to refresh this document when new example logs arrive:**
 
@@ -273,23 +299,39 @@ DENSITY · ADDITIONAL OBSERVATIONS (Geological Origin). Structurally the
 same column set as Borehole, with a DCP column (Dynamic Cone Penetration)
 in place of SPT's; PID readings appear on 5/34 pages.
 
-A DCP/PP token count is deliberately not given here: an earlier pass at this
-survey searched surveyed pages' plain `extract_text()` output for bare
-substrings ("PP", "DCP", "BS", "DS") and reported 100% hits for several -
-which turned out to be false positives (`"BS"` inside `"OBSERVATIONS"`,
-`"DS"` inside `"SANDSTONE"`), not real field-test labels; re-run with
-word-boundary-anchored patterns, `PP` and `DCP` matched **zero** surveyed
-pages, `B:`/`D:`/`C:` matched cleanly. This isn't evidence DCP/PP readings
-don't occur - the DCP/PP column caption is confirmed present via the
-rotated-header word-position extraction used elsewhere in this document -
-it's evidence that `extract_text()`'s reading order on this template is too
-unreliable for plain substring search to safely confirm or deny per-row
-data, the same limitation `borehole_log.py` was built to work around by
-reading word coordinates directly instead. Only the colon-anchored sample
-prefixes (`C:`, `B:`, `D:`, `SPT:`, `ES:`) are trustworthy from a plain-text
-survey; anything else in this section's table-column list should be
-confirmed against `borehole_log.py`'s own column extraction, not
-re-surveyed with `extract_text()` substring search.
+**Correction - DCP data is present, an earlier pass just looked for the
+wrong thing.** DCP readings don't print the word "DCP" next to each value -
+same pattern as SPT-N, which prints bare blow counts, not "N: 9" - so the
+original bare-substring search for the literal text "DCP" was checking for
+something that was never going to appear per-row and reported a false
+"zero". Re-checked by reading the field-tests column's actual numeric
+content by word position (the same coordinate-based approach
+`borehole_log.py` uses, not `extract_text()` substring search): **9/34
+(26%) of surveyed Pavement Dip pages carry DCP readings** - runs of plain
+integers (blow count per 100mm increment), up to 13 readings on one page.
+Absence on the other 74% looks like genuine "DCP wasn't performed at this
+hole" (e.g. `PRUP_AC01L`, a shallow asphalt coring to 0.4m with no DCP
+data at all) rather than an extraction failure, but that's inferred, not
+independently confirmed per hole.
+
+**Partial-penetration format:** where a single blow drives the cone more
+than 100mm, the reading isn't a clean whole number - it's printed as
+`blows/mm`, e.g. `22/80` (found on `PRUP_PC` pages) meaning that many blows
+achieved only 80mm of the 100mm increment. This is the DCP equivalent of
+SPT's refusal notation (`10/50 mm HB N=R`). **`borehole_log.py` has no DCP
+extraction at all currently** - it only parses `SPT:`/`D:`/`ES:`/`U:`
+labelled entries (`_ENTRY_LABEL_RE`) - so this format isn't handled or
+mishandled by the parser today; it simply isn't looked for. Any future DCP
+extraction needs to handle both the plain-integer and `N/mm` forms from the
+start, the same way the existing SPT parsing already does.
+
+PP (Pocket Penetrometer) readings remain unconfirmed either way: the
+original "PP" substring search also returned a false zero (same flawed
+method), but unlike DCP, a quick re-check with word-position extraction
+didn't turn up an obvious numeric pattern for PP the way it did for DCP -
+it may sit in a different sub-column not yet identified, or use a
+non-numeric marker. Treat PP presence as genuinely unverified, not "zero",
+until someone deliberately locates its column.
 
 **Depth-axis calibration:** unlike Test Pit and Cored Borehole, Pavement
 Dip's depth column sits inside the parser's existing column range and
@@ -318,14 +360,23 @@ CONDITION/CONSISTENCY-RELATIVE DENSITY · ADDITIONAL OBSERVATIONS (Geological
 Origin). Same column set as Pavement Dip; PID readings appear on 9/21
 (43%). No `SPT:`/`D:`/`C:` prefix matched on any surveyed page.
 
-Note (see §2.3): an earlier pass reported PP and "BS" both at 100% and "DS"
-at 11/21 - all three were false positives from unbounded substring search
-(`"BS"` inside `"OBSERVATIONS"`, `"DS"` inside `"SANDSTONE"`, and a PP match
-that didn't reproduce under a word-boundary check). Re-verified: `B:` is the
-only sample-type prefix confirmed present by a reliable colon-anchored
-search; PP/DCP column data could not be confirmed or denied by plain-text
-search on this template and would need the coordinate-based extraction
-approach `borehole_log.py` uses instead.
+**Correction - DCP is common here, not absent** (see §2.3 for the same fix
+and why the original "DCP" substring search was always going to find
+nothing - it prints as bare numbers, not the word "DCP"). Re-checked by
+word position: **13/21 (62%) of surveyed Test Pit pages carry DCP
+readings** - the highest presence of any log type surveyed, up to 18
+readings on one page - including partial-penetration entries like `25/70`
+and `5/10` (see §2.3 for what this format means). This is a meaningfully
+higher rate than Pavement Dip's 26%, consistent with DCP being a more
+central field test for Test Pits specifically.
+
+Note (see §2.3): an earlier pass also reported "BS" at 100% and "DS" at
+11/21 - both false positives from unbounded substring search (`"BS"` inside
+`"OBSERVATIONS"`, `"DS"` inside `"SANDSTONE"`). Re-verified: `B:` is the
+only sample-type prefix confirmed present by colon-anchored search. PP
+(Pocket Penetrometer) remains genuinely unverified - no "PP" text or "kPa"
+value was found by either method - it may use a column/format not yet
+identified.
 
 **Known parser limitation:** the DEPTH column sits noticeably further right
 on Test Pit pages (tick-value words at x≈193) than on Borehole/Pavement Dip
@@ -358,12 +409,19 @@ note): this is not a cosmetic date bump. Concretely:
 - §3.15's Defect Planarity symbol for "planar" changed from **PL to PR**;
   Defect Roughness's "rough" changed from **ro to RF** (all roughness/
   planarity symbols also went uppercase). The Defect Type table gained
-  **DL** and **DB** (Drill Lift, Handling Break, alongside MB) and
-  reassigned the seam symbols: **SS now means Sheared Seam** (previously a
-  generic "Soil Seam, origin undetermined" fallback), with **CS**
-  (Crushed Seam) and **IS** (Infilled Seam) replacing the old CR/NF. A new
-  "vein" suffix convention and a generalised-defect-count-and-spacing
-  suffix convention were both added.
+  **DL**, **DB**, and **HB** alongside MB - four separate codes (Mechanical
+  Break / Drill Lift / Drilling Break / Handling Break), not a single
+  shared row - and reassigned the seam symbols: **SS now means Sheared
+  Seam** (previously a generic "Soil Seam, origin undetermined" fallback),
+  with **CS** (Crushed Seam) and **IS** (Infilled Seam) replacing the old
+  CR/NF. A new "vein" suffix convention and a generalised-defect-count-and-
+  spacing suffix convention were both added. (**Correction**: this table
+  originally merged MB/DL/DB into one row reading "Mechanical Break / Drill
+  Lift / Handling Break" and omitted HB entirely - the static PDF's layout
+  was misread. Confirmed directly against OpenGround, the software that
+  actually generates these logs and the authoritative source where it and
+  the PDF disagree: MB/DL/DB/HB are four distinct codes, each with its own
+  meaning - see §3.15.)
 - §3.15's Infill/Coating table replaced generic "co" (coated) with **CT**
   ("Coating, ≤1mm thick") and refined "vn"→**VN** to "Veneer, too thin to
   measure"; added a footnote that infill/coating of soil should use soil
@@ -715,13 +773,24 @@ Seam, origin can't be determined" fallback; as of 28/10/2025 it means
 Sheared Seam specifically, and the generic fallback concept is gone
 entirely.
 
+**Correction (confirmed against OpenGround, the software that actually
+generates these logs - authoritative over the static AECOM PDF where the
+two disagree):** MB, DL, DB, and HB are **four separate codes**, not one
+merged row. The AECOM PDF's layout was originally misread as a single row
+"MB / DL / DB = Mechanical Break / Drill Lift / Handling Break", which both
+conflated three symbols into one definition and omitted HB (Handling
+Break) entirely. Corrected below.
+
 | Abbreviation | Term | Definition |
 |---|---|---|
 | P | Parting | Surface/crack parallel to bedding/cleavage, little/no tensile strength |
 | J | Joint | Surface/crack, no shear displacement, not parallel to bedding |
 | S | Sheared Surface | Smooth/polished/slickensided, shows shear displacement |
 | SZ | Sheared Zone | Roughly parallel boundaries cut by close joints/shears, lenticular blocks |
-| MB / DL / DB | Mechanical Break / Drill Lift / Handling Break | Not natural - drilling, testing, storage (three distinct symbols, one shared definition) |
+| MB | Mechanical Break | A break in rock mass not caused by natural effects |
+| DL | Drill Lift | A break in rock mass not caused by natural effects |
+| DB | Drilling Break | A break in rock mass not caused by natural effects |
+| HB | Handling Break | A break in rock mass not caused by natural effects |
 | SS | Sheared Seam | Roughly parallel boundaries cut by close joints/cleavage |
 | CS | Crushed Seam | Roughly parallel boundaries, disorientated/angular host-rock fragments |
 | IS | Infilled Seam | Distinct parallel boundaries, infill from soil migration into joints |
@@ -729,6 +798,14 @@ entirely.
 
 (2017→2025 renames: SH→SS, CR→CS, NF→IS. The old catch-all "SS = Soil Seam,
 origin undetermined" has no equivalent in the current revision.)
+
+**Namespace collision to watch for in Phase 2:** `HB` also appears in
+§3.16's Field Sampling table meaning "SPT Hammer Bouncing" (and prints in
+the wild that way, e.g. an SPT reading of `10/50 mm HB N=R`). Same two
+letters, two unrelated meanings, disambiguated only by which column/context
+the token appears in - a rule-checker matching bare `HB` tokens must key
+off the surrounding column (rock-defect-description text vs. an SPT field-
+test entry), not the symbol alone.
 
 Sheared surfaces/zones/seams and crushed seams are "generally faults in
 geological terms". Healed defects are suffixed "healed"; a mineral growth
@@ -829,7 +906,10 @@ auger drilling with V-bit - previously written "ADV".)
   alteration symbol (§3.14), defect type/planarity/roughness/infill symbols
   (§3.15), field-test/sample/drilling-method symbols (§3.16). An abbreviation
   not in the table is either a typo or an undocumented convention - either
-  way, flaggable.
+  way, flaggable. One symbol is context-dependent, not a simple lookup: `HB`
+  means Handling Break in a defect-type context (§3.15) and SPT Hammer
+  Bouncing in a field-test context (§3.16) - the check must key off which
+  column/field the token was found in, not the bare symbol.
 - **Plasticity term matches stated/lab LL%** (§3.2): "medium plasticity"
   paired with a lab LL of 30% is a direct contradiction. Requires the
   Atterberg lab-report parser's output alongside the log, when a lab test
