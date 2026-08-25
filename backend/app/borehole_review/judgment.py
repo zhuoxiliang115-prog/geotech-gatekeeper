@@ -32,6 +32,7 @@ without guessing from a chars/4 heuristic.
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -41,6 +42,14 @@ logger = logging.getLogger(__name__)
 
 CATEGORY = "judgment_based"
 MODEL = "claude-sonnet-5"
+
+# Deliberately not ANTHROPIC_API_KEY: on Claude Code's own cloud runners that
+# name is reserved for the platform's own billing/auth and isn't passed
+# through to session/app code, so the SDK's default env lookup can't be
+# relied on here. Read this app-specific name explicitly instead and pass it
+# to anthropic.Anthropic(api_key=...) rather than letting the SDK fall back
+# to ANTHROPIC_API_KEY on its own.
+API_KEY_ENV_VAR = "APP_ANTHROPIC_API_KEY"
 
 STANDARD_DOC_PATH = Path(__file__).resolve().parents[3] / "reference" / "borehole-log-standard.md"
 
@@ -184,7 +193,14 @@ def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None
         return {"findings": [], "error": None, "usage": None}
 
     try:
-        client = client or anthropic.Anthropic()
+        if client is None:
+            api_key = os.environ.get(API_KEY_ENV_VAR)
+            if not api_key:
+                raise RuntimeError(
+                    f"{API_KEY_ENV_VAR} is not set - the judgment layer requires it explicitly "
+                    "(see API_KEY_ENV_VAR in this module)."
+                )
+            client = anthropic.Anthropic(api_key=api_key)
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             part3=_load_standard_doc_part3(),
             part4_3=_load_standard_doc_part4_3(),
