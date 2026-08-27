@@ -3,6 +3,7 @@ import LogHeaderSummary from './LogHeaderSummary'
 import RuleCheckedFindings from './RuleCheckedFindings'
 import LabCrossReferenceFindings from './LabCrossReferenceFindings'
 import JudgmentFindings from './JudgmentFindings'
+import ActionItems from './ActionItems'
 import { isLabCrossRefFinding } from './boreholeReviewChecks'
 
 /**
@@ -41,6 +42,8 @@ export default function HoleTabs({ holes, judgmentModel }) {
           </button>
         ))}
       </div>
+
+      <ActionItems pages={pages} />
 
       {pages.map((page) => {
         const ruleFindings = page.rule_findings ?? []

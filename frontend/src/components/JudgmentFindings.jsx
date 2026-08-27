@@ -33,19 +33,21 @@ export default function JudgmentFindings({ findings, judgmentError, judgmentMode
           {findings.map((f, i) => (
             <li key={i} className="judgment-finding">
               <div className="judgment-finding-head">
-                <span className="judgment-finding-category">
-                  {JUDGMENT_CATEGORY_LABELS[f.judgment_category] ?? f.judgment_category}
+                <span className="judgment-finding-location">
+                  {f.stratum_reference ?? 'General (whole page)'}
                 </span>
                 <span className={`confidence-badge confidence-${f.confidence}`}>
                   {f.confidence} confidence
+                </span>
+              </div>
+              <div className="judgment-finding-meta">
+                <span className="judgment-finding-category">
+                  {JUDGMENT_CATEGORY_LABELS[f.judgment_category] ?? f.judgment_category}
                 </span>
                 <span className="judgment-finding-section">{f.standard_section}</span>
               </div>
               <p className="judgment-finding-text">{f.finding}</p>
               <p className="judgment-finding-uncertainty">{f.uncertainty_note}</p>
-              {f.stratum_reference && (
-                <p className="judgment-finding-reference">Ref: {f.stratum_reference}</p>
-              )}
             </li>
           ))}
         </ul>
