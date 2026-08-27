@@ -958,6 +958,17 @@ auger drilling with V-bit - previously written "ADV".)
   worth flagging than it used to be, since policy says the two should be
   reconciled - but this is a stated policy, not confirmed practice on any
   given log, so it stays a judgment call rather than a hard rule.
+  **Reliability caution:** §3.9 (cohesionless/sand, relative density) and
+  §3.10 (cohesive/silt-clay, consistency) are two separate correlation
+  tables, and their bands share exact SPT-N values at adjacent boundaries -
+  e.g. N=4 is simultaneously the Very Loose/Loose line in §3.9 and the
+  Soft/Firm line in §3.10. Citing "N is near the X/Y boundary" is precise,
+  table-lookup work, not a paraphrase - an LLM reviewer can get the specific
+  boundary or even the applicable table wrong while its overall qualitative
+  flag ("this SPT-N looks low for the stated term") stays reasonable. Any
+  cited boundary/band in a judgment-layer finding should be checked against
+  the actual §3.9/§3.10 table before being taken as correct, not accepted
+  on the finding's own say-so.
 - **Whether a geological-origin term (FILL, ALLUVIUM, RESIDUAL...) is
   plausible** given the described material, depth, and site context.
 - **Cross-sheet strata continuity** ("Log continued on/from" pages) -
