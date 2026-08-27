@@ -43,6 +43,16 @@ logger = logging.getLogger(__name__)
 CATEGORY = "judgment_based"
 MODEL = "claude-sonnet-5"
 
+# Extended thinking is on by default for this model via this API and isn't
+# configured here, so it competes with the final JSON for the same
+# max_tokens budget. 4096 (the original value) was verified live against
+# real log pages to be unsafe: on a content-rich page the model can spend
+# the entire budget on thinking and return zero output, surfaced only as a
+# missing text block. 16000 was the smallest budget in that same live test
+# that let both claude-sonnet-5 and claude-opus-5 finish a real dense page
+# (borehole-log-standard-review read-through, Aug 2026).
+MAX_TOKENS = 16000
+
 # Deliberately not ANTHROPIC_API_KEY: on Claude Code's own cloud runners that
 # name is reserved for the platform's own billing/auth and isn't passed
 # through to session/app code, so the SDK's default env lookup can't be
@@ -192,6 +202,7 @@ def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None
     if parsed_page.get("page_type") != "log":
         return {"findings": [], "error": None, "usage": None}
 
+    usage = None
     try:
         if client is None:
             api_key = os.environ.get(API_KEY_ENV_VAR)
@@ -209,7 +220,7 @@ def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None
 
         response = client.messages.create(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=MAX_TOKENS,
             system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": f"Parsed log data to review:\n\n{log_summary}"}],
             output_config={"format": {"type": "json_schema", "schema": _RESPONSE_SCHEMA}},
@@ -227,10 +238,16 @@ def review_page_judgment(parsed_page: dict, client: "anthropic.Anthropic" = None
             usage["cache_read_input_tokens"],
         )
 
-        text = next(b.text for b in response.content if b.type == "text")
-        raw = json.loads(text)
+        text_block = next((b for b in response.content if b.type == "text"), None)
+        if text_block is None:
+            raise RuntimeError(
+                f"No text content block in response (stop_reason={response.stop_reason!r}, "
+                f"content block types={[b.type for b in response.content]!r}) - the model likely "
+                "exhausted max_tokens on extended thinking before producing any output."
+            )
+        raw = json.loads(text_block.text)
     except Exception as exc:  # noqa: BLE001 - any API/parsing failure degrades, doesn't crash
-        return {"findings": [], "error": str(exc), "usage": None}
+        return {"findings": [], "error": str(exc) or repr(exc), "usage": usage}
 
     findings = []
     for f in raw.get("findings", []):
