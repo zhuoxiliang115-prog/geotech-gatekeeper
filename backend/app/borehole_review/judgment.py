@@ -140,7 +140,13 @@ Only report a finding when something is genuinely worth a second look. Do not ma
 
 
 def _load_standard_doc_section(pattern: str, fallback_label: str) -> str:
-    text = STANDARD_DOC_PATH.read_text()
+    # Explicit encoding, not the platform default: the standard doc is
+    # UTF-8 (uses §, ≤, ≥, — throughout), and Path.read_text() without an
+    # explicit encoding falls back to the OS locale's default codepage -
+    # cp1252 on Windows - which can't decode those bytes and raises
+    # UnicodeDecodeError. Never reproduced on Linux, where the default
+    # locale encoding is normally UTF-8 already.
+    text = STANDARD_DOC_PATH.read_text(encoding="utf-8")
     m = re.search(pattern, text, re.DOTALL)
     if not m:
         return f"[{fallback_label} could not be loaded from {STANDARD_DOC_PATH}]"
