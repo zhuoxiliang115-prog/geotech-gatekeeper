@@ -1,0 +1,55 @@
+.psd-chart-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.psd-chart-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.psd-header-wrap {
+  box-sizing: border-box;
+}
+
+.psd-classification-header {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: center;
+}
+
+.psd-classification-header td {
+  border: 1px solid #0b0b0b;
+  padding: 4px 2px;
+  font-weight: 600;
+  color: #0b0b0b;
+}
+
+.chart-side-legend {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 40px;
+  font-size: 12px;
+  color: #52514e;
+  min-width: 130px;
+}
+
+.chart-side-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.chart-side-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}

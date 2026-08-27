@@ -17,6 +17,8 @@ export default function PsdSection({ results }) {
           <dl>
             <dt>Sample</dt>
             <dd>{row.mg_sample_no ?? '—'} ({row.sample_id ?? '—'})</dd>
+            <dt>Description</dt>
+            <dd>{row.sample_description ?? '—'}</dd>
             <dt>Readings (sieve mm → % passing)</dt>
             <dd>{row.readings.map((r) => `${r.sieve_mm}→${r.passing_pct}%`).join(', ')}</dd>
           </dl>

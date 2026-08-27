@@ -1,0 +1,18 @@
+.atterberg-chart-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.atterberg-chart-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: auto;
+}
+
+.chart-side-legend-marker {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
