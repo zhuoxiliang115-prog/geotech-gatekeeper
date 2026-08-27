@@ -85,7 +85,7 @@ def test_review_log_reports_model_and_aggregate_usage():
     resp = _upload_log("PRUP_AC Logs.pdf")
     body = resp.json()
 
-    assert body["judgment_model"] == "claude-sonnet-5"
+    assert body["judgment_model"] == "claude-opus-5"
     # 16 log pages, each stubbed at the same usage figures - exact totals,
     # not an estimate.
     log_pages = [p for p in body["pages_reviewed"] if p["page_type"] == "log"]

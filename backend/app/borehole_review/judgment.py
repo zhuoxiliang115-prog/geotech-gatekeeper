@@ -18,10 +18,16 @@ knowing. Output is structured JSON only (via output_config.format), not
 free-form prose, so it can be rendered distinctly from rules.py's
 higher-confidence findings.
 
-Model: claude-sonnet-5, not the skill-default Opus 5 - switched after a
-cost/quality comparison (see the session's manual read-through notes) at
-the user's explicit request. Revert MODEL below to "claude-opus-5" if a
-future read-through finds Sonnet's judgment quality doesn't hold up.
+Model: claude-opus-5. A live read-through (real API calls against real log
+pages) initially moved this to claude-sonnet-5 for cost, but a follow-up
+read-through at a properly sized token budget (see MAX_TOKENS) found Opus
+catching explicit standard-clause violations - e.g. missing colour-term
+hyphenation (SS3.3) and rock-vs-soil terminology for XW weathering grade
+(SS3.14) - that Sonnet missed on the same pages. For a layer whose whole
+job is catching exactly these clause violations, that's a reliability gap,
+not just a lower hit-count, so Opus was kept at the user's explicit
+request (Aug 2026 read-through). Revisit only with new comparable
+evidence, not on cost grounds alone.
 
 Every request logs its exact token usage (input/output/cache
 read/write, from the real API response's `usage` field - not an
@@ -41,7 +47,7 @@ import anthropic
 logger = logging.getLogger(__name__)
 
 CATEGORY = "judgment_based"
-MODEL = "claude-sonnet-5"
+MODEL = "claude-opus-5"
 
 # Extended thinking is on by default for this model via this API and isn't
 # configured here, so it competes with the final JSON for the same

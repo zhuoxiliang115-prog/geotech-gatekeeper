@@ -138,11 +138,12 @@ def test_review_page_judgment_logs_usage(caplog):
     assert any("input_tokens=8500" in r.message for r in caplog.records)
 
 
-def test_model_is_sonnet_5():
-    # Switched from the skill-default Opus 5 to Sonnet 5 for cost, per an
-    # explicit user decision - revert here if a future quality
-    # read-through finds it doesn't hold up.
-    assert judgment.MODEL == "claude-sonnet-5"
+def test_model_is_opus_5():
+    # A live read-through found Sonnet missing explicit standard-clause
+    # violations (colour hyphenation, XW weathering-grade terminology)
+    # that Opus caught on the same pages - a reliability gap, not just a
+    # lower hit-count, so Opus was kept despite the higher cost.
+    assert judgment.MODEL == "claude-opus-5"
 
 
 def test_review_page_judgment_uses_json_schema_output_config():
