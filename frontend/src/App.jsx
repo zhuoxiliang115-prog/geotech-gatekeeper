@@ -7,9 +7,10 @@ import EmersonSection from './components/EmersonSection'
 import PointLoadSection from './components/PointLoadSection'
 import PsdSection from './components/PsdSection'
 import SmddSection from './components/SmddSection'
+import BoreholeLogReview from './components/BoreholeLogReview'
 import './App.css'
 
-function App() {
+function LabReportUpload() {
   const [file, setFile] = useState(null)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
@@ -34,7 +35,7 @@ function App() {
   }
 
   return (
-    <main className="app">
+    <>
       <h1>Geotech Lab Report Upload</h1>
       <p className="subtitle">
         Upload a Macquarie Geotech report PDF to see what gets extracted.
@@ -88,6 +89,33 @@ function App() {
           </details>
         </div>
       )}
+    </>
+  )
+}
+
+const PAGES = {
+  lab: { label: 'Lab Report Upload', Component: LabReportUpload },
+  log: { label: 'Borehole Log Review', Component: BoreholeLogReview },
+}
+
+function App() {
+  const [page, setPage] = useState('lab')
+  const { Component } = PAGES[page]
+
+  return (
+    <main className="app">
+      <nav className="page-nav">
+        {Object.entries(PAGES).map(([key, { label }]) => (
+          <button
+            key={key}
+            className={`page-nav-tab${key === page ? ' page-nav-tab-active' : ''}`}
+            onClick={() => setPage(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      <Component />
     </main>
   )
 }

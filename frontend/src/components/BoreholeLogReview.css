@@ -1,0 +1,485 @@
+/* The site-wide default (#root) centers text for the header/marketing-style
+   chrome - fine for the page title above, wrong for a form and a findings
+   checklist, which need to read left-to-right like any other list. */
+.log-review-form,
+.log-review-results {
+  text-align: left;
+}
+
+.log-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border: 1px solid #e1e0d9;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.log-review-field label {
+  display: block;
+  font-weight: 600;
+  color: #0b0b0b;
+  margin-bottom: 0.4rem;
+}
+
+.optional-tag {
+  font-weight: 400;
+  color: #898781;
+}
+
+/* The lab-report field is deliberately the most visually prominent part
+   of the form, not a buried advanced option - attaching lab reports
+   unlocks some of the most valuable findings this feature produces. */
+.log-review-lab-field {
+  padding: 0.9rem 1rem;
+  border: 1px solid #bcd6f5;
+  border-radius: 8px;
+  background: #eef5fd;
+}
+
+.lab-field-callout {
+  color: #234;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.lab-files-selected {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #52514e;
+}
+
+.review-submit-button {
+  align-self: flex-start;
+  padding: 0.6rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2a78d6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+}
+
+.review-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.review-cost-note {
+  margin: -0.5rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #898781;
+}
+
+.no-lab-reports-banner {
+  background: #fff8ec;
+  border: 1px solid #f0d9a6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #6b4f10;
+  font-size: 0.9rem;
+  margin: 1rem 0;
+}
+
+.no-holes-found {
+  color: #898781;
+  font-style: italic;
+}
+
+/* --- Hole tabs (Step 3) --- */
+
+.hole-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border-bottom: 2px solid #e0e0e0;
+  margin: 1.5rem 0 1.5rem;
+  padding-bottom: 0;
+}
+
+.hole-tab {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #52514e;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  margin-bottom: -2px;
+}
+
+.hole-tab:hover {
+  color: #0b0b0b;
+}
+
+.hole-tab-active {
+  color: #2a78d6;
+  border-bottom-color: #2a78d6;
+}
+
+.hole-tab-count {
+  color: #898781;
+  font-weight: 400;
+}
+
+.hole-sheet {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e1e0d9;
+}
+
+.hole-sheet:last-child {
+  border-bottom: none;
+}
+
+/* --- Log header summary --- */
+
+.log-header-summary {
+  background: #fafafa;
+  border: 1px solid #e1e0d9;
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.25rem;
+}
+
+.log-header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.log-header-hole-id {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0b0b0b;
+}
+
+.log-header-type,
+.log-header-sheet {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #52514e;
+  background: #eceae2;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+}
+
+.log-header-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.log-header-fields dt {
+  color: #898781;
+  display: inline;
+}
+
+.log-header-fields dd {
+  display: inline;
+  margin: 0 0 0 0.3rem;
+  color: #333;
+}
+
+.log-header-fields > div {
+  display: block;
+}
+
+.log-header-continuity {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #898781;
+}
+
+/* --- Shared findings-group chrome --- */
+
+.findings-group {
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.findings-group h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.findings-group-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.83rem;
+  color: #52514e;
+}
+
+/* --- Rule-checked findings: neutral, pass/fail is genuinely binary --- */
+
+.rule-checked-group {
+  background: #fff;
+  border: 1px solid #e1e0d9;
+}
+
+.rule-findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rule-finding {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+}
+
+.rule-finding-pass {
+  background: #f2faf6;
+  border-left-color: #1baf7a;
+}
+
+.rule-finding-fail {
+  background: #fdf2f2;
+  border-left-color: #e34948;
+}
+
+.rule-finding-skipped {
+  background: #f5f5f3;
+  border-left-color: #c3c2b7;
+}
+
+.rule-finding-icon {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.rule-finding-pass .rule-finding-icon { color: #1baf7a; }
+.rule-finding-fail .rule-finding-icon { color: #e34948; }
+.rule-finding-skipped .rule-finding-icon { color: #898781; }
+
+.rule-finding-body {
+  flex: 1;
+}
+
+.rule-finding-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin-bottom: 0.15rem;
+}
+
+.rule-finding-status-label {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rule-finding-pass .rule-finding-status-label { color: #1baf7a; }
+.rule-finding-fail .rule-finding-status-label { color: #e34948; }
+.rule-finding-skipped .rule-finding-status-label { color: #898781; }
+
+.rule-finding-section {
+  font-size: 0.78rem;
+  color: #898781;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.rule-finding-explanation {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* --- Lab cross-reference findings: warm/amber, deliberately its own
+   visual identity so it doesn't blend into the plain rule-checked list --- */
+
+.lab-cross-ref-group {
+  background: #fffaf0;
+  border: 1px solid #f0d9a6;
+}
+
+.lab-cross-ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lab-cross-ref-finding {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #f0e2c0;
+}
+
+.lab-cross-ref-fail {
+  border-color: #eda100;
+  background: #fff5e0;
+}
+
+.lab-cross-ref-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+}
+
+.lab-cross-ref-sample {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0b0b0b;
+}
+
+.lab-cross-ref-section {
+  font-size: 0.78rem;
+  color: #898781;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.lab-cross-ref-suggestion {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #5c3d00;
+}
+
+.lab-cross-ref-suggestion strong {
+  color: #a15c00;
+}
+
+.lab-cross-ref-skipped {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #52514e;
+  font-style: italic;
+}
+
+.lab-cross-ref-pass {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #2b5f45;
+}
+
+/* --- Judgment-based findings: distinctly separate from rule-checked -
+   violet accent, confidence badges are deliberately monochrome (not
+   traffic-light colored) so this section can't be skimmed as a verdict. --- */
+
+.judgment-group {
+  background: #f8f6fd;
+  border: 1px solid #d9d0f0;
+}
+
+.judgment-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a3aa7;
+  background: #e6e0f7;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.judgment-error {
+  background: #fdf2f2;
+  border: 1px solid #f3c6c6;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  color: #a02020;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.judgment-empty {
+  color: #52514e;
+  font-size: 0.88rem;
+  font-style: italic;
+  margin: 0;
+}
+
+.judgment-findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.judgment-finding {
+  background: #fff;
+  border: 1px solid #e2dbf5;
+  border-left: 3px solid #4a3aa7;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+}
+
+.judgment-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.judgment-finding-category {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #3a2d80;
+}
+
+.confidence-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #52514e;
+  background: #e9e8e4;
+  border-radius: 10px;
+  padding: 0.1rem 0.55rem;
+}
+
+.judgment-finding-section {
+  font-size: 0.78rem;
+  color: #898781;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.judgment-finding-text {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #222;
+}
+
+.judgment-finding-uncertainty {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #6b6375;
+  font-style: italic;
+}
+
+.judgment-finding-reference {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #898781;
+}
