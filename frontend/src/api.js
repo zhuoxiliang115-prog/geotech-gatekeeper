@@ -16,3 +16,23 @@ export async function uploadReport(file) {
 
   return response.json()
 }
+
+export async function reviewLog(logFile, labFiles = []) {
+  const formData = new FormData()
+  formData.append('file', logFile)
+  for (const labFile of labFiles) {
+    formData.append('lab_reports', labFile)
+  }
+
+  const response = await fetch(`${API_BASE_URL}/review-log`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `Review failed (${response.status})`)
+  }
+
+  return response.json()
+}

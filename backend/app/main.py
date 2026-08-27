@@ -1,3 +1,4 @@
+import asyncio
 import io
 
 import pdfplumber
@@ -126,7 +127,11 @@ async def review_log(
         is_log_page = page_row.get("page_type") == "log"
 
         rule_findings = rules.run_all_checks(page_row, words, lab_results) if is_log_page else []
-        judgment_result = judgment.review_page_judgment(page_row)
+        # review_page_judgment() is a synchronous call (its own Anthropic
+        # client, a real blocking network request) - run it off-thread so a
+        # slow/hanging call doesn't block the whole async event loop (and
+        # every other in-flight request) for however long it takes.
+        judgment_result = await asyncio.to_thread(judgment.review_page_judgment, page_row)
 
         pages_reviewed.append(
             {

@@ -11,6 +11,34 @@
   margin-top: -0.5rem;
 }
 
+.page-nav {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 0.5rem;
+}
+
+.page-nav-tab {
+  padding: 0.6rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #898781;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  margin-bottom: -2px;
+}
+
+.page-nav-tab:hover {
+  color: #1a1a1a;
+}
+
+.page-nav-tab-active {
+  color: #2a78d6;
+  border-bottom-color: #2a78d6;
+}
+
 .upload-form {
   display: flex;
   gap: 0.75rem;
