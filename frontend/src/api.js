@@ -23,6 +23,23 @@ export async function uploadReport(file) {
   return response.json()
 }
 
+export async function soilParameters(logFile) {
+  const formData = new FormData()
+  formData.append('file', logFile)
+
+  const response = await fetch(`${API_BASE_URL}/soil-parameters`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `Soil parameter derivation failed (${response.status})`)
+  }
+
+  return response.json()
+}
+
 export async function reviewLog(logFile, labFiles = []) {
   const formData = new FormData()
   formData.append('file', logFile)

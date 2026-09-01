@@ -1,0 +1,182 @@
+/* Soil Parameters findings cards - deliberately its own stylesheet, not
+   shared with BoreholeLogReview.css's rule/lab/judgment finding cards.
+   Same visual grammar (bold "Where" label, muted secondary metadata,
+   status-colored left border) but its own tokens: classified strata get
+   the app's existing nav-accent blue (#2a78d6, see App.css's
+   .page-nav-tab-active) rather than rule-checked's pass green, since a
+   classification isn't a pass/fail - it's a different kind of result.
+   Unclassified strata reuse the exact grey already established for
+   "skipped" rule findings (not red - a missing classification isn't a
+   defect, it's "no answer available"). */
+
+.soil-param-empty {
+  color: #52514e;
+  font-style: italic;
+}
+
+.soil-param-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.soil-param-card {
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+}
+
+.soil-param-card-classified {
+  background: #eef4fc;
+  border-left-color: #2a78d6;
+}
+
+.soil-param-card-unclassified {
+  background: #f5f5f3;
+  border-left-color: #c3c2b7;
+}
+
+.soil-param-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.soil-param-location {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #0b0b0b;
+}
+
+.soil-param-bucket-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1c5cb8;
+  white-space: nowrap;
+}
+
+.soil-param-status-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #898781;
+  white-space: nowrap;
+}
+
+.soil-param-basis {
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: #222;
+}
+
+.soil-param-flag {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: #52514e;
+}
+
+.soil-param-principal-hint {
+  color: #898781;
+  font-style: italic;
+}
+
+.soil-param-warnings {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.soil-param-warning {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #a15c00;
+}
+
+.soil-param-warning-icon {
+  color: #eda100;
+}
+
+.soil-param-fields {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.3rem;
+}
+
+.soil-param-fields td {
+  padding: 0.2rem 0.5rem 0.2rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #e1e0d9;
+}
+
+.soil-param-field-label {
+  color: #52514e;
+  white-space: nowrap;
+}
+
+.soil-param-field-value {
+  color: #0b0b0b;
+  font-weight: 600;
+  text-align: left;
+  width: 100%;
+}
+
+.soil-param-field-provisional .soil-param-field-value {
+  color: #a15c00;
+}
+
+/* The point of source_note is that a provisional value must never read as
+   an ordinary looked-up number - the badge is always visible next to the
+   value itself (not just on hover), and the full note text is repeated
+   again below in .soil-param-notes so it's never hidden behind a tooltip
+   only. */
+.soil-param-provisional-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #a15c00;
+  background: #fff0d1;
+  border: 1px solid #eda100;
+  border-radius: 10px;
+  padding: 0.05rem 0.45rem;
+  cursor: help;
+}
+
+.soil-param-notes {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: #fff5e0;
+  border: 1px solid #f0d9a6;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.soil-param-note {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #5c3d00;
+}
+
+.soil-param-table-source {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #898781;
+  font-style: italic;
+}
