@@ -275,6 +275,7 @@
 
 .rule-finding-head {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: baseline;
   margin-bottom: 0.15rem;
@@ -290,6 +291,16 @@
 .rule-finding-pass .rule-finding-status-label { color: #1baf7a; }
 .rule-finding-fail .rule-finding-status-label { color: #e34948; }
 .rule-finding-skipped .rule-finding-status-label { color: #898781; }
+
+/* Only rendered when the finding's `compared` data pinpoints something
+   more specific than the section number (a stratum, a depth, a reading) -
+   see getRuleFindingLocation. Absent for the log-wide header/column
+   checks, which stay exactly as they were. */
+.rule-finding-location {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #2b2a26;
+}
 
 .rule-finding-section {
   font-size: 0.78rem;

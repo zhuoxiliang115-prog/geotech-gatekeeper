@@ -1,4 +1,4 @@
-import { isLabCrossRefFinding } from './boreholeReviewChecks'
+import { getRuleFindingLocation, isLabCrossRefFinding } from './boreholeReviewChecks'
 
 const TYPE_LABEL = { rule: 'Rule', lab: 'Lab', judgment: 'AI' }
 
@@ -18,7 +18,7 @@ export default function ActionItems({ pages }) {
 
     for (const f of ruleFindings) {
       if (isLabCrossRefFinding(f) || f.status !== 'fail') continue
-      items.push({ type: 'rule', sheet, location: f.standard_section, text: f.explanation })
+      items.push({ type: 'rule', sheet, location: getRuleFindingLocation(f) ?? f.standard_section, text: f.explanation })
     }
     for (const f of ruleFindings) {
       if (!isLabCrossRefFinding(f) || f.status !== 'fail') continue

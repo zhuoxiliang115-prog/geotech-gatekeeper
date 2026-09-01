@@ -1,3 +1,5 @@
+import { getRuleFindingLocation } from './boreholeReviewChecks'
+
 const STATUS_ICON = { pass: '✓', fail: '✕', skipped: '–' }
 const STATUS_LABEL = { pass: 'Pass', fail: 'Fail', skipped: 'Not checked' }
 // Fails first (need attention), then skips (need attention too, just a
@@ -23,18 +25,22 @@ export default function RuleCheckedFindings({ findings }) {
         Deterministic checks against the standard doc - genuinely pass or fail, no ambiguity.
       </p>
       <ul className="rule-findings-list">
-        {sorted.map((f, i) => (
-          <li key={i} className={`rule-finding rule-finding-${f.status}`}>
-            <span className="rule-finding-icon" aria-hidden="true">{STATUS_ICON[f.status]}</span>
-            <div className="rule-finding-body">
-              <div className="rule-finding-head">
-                <span className="rule-finding-status-label">{STATUS_LABEL[f.status]}</span>
-                <span className="rule-finding-section">{f.standard_section}</span>
+        {sorted.map((f, i) => {
+          const location = getRuleFindingLocation(f)
+          return (
+            <li key={i} className={`rule-finding rule-finding-${f.status}`}>
+              <span className="rule-finding-icon" aria-hidden="true">{STATUS_ICON[f.status]}</span>
+              <div className="rule-finding-body">
+                <div className="rule-finding-head">
+                  <span className="rule-finding-status-label">{STATUS_LABEL[f.status]}</span>
+                  {location && <span className="rule-finding-location">{location}</span>}
+                  <span className="rule-finding-section">{f.standard_section}</span>
+                </div>
+                <p className="rule-finding-explanation">{f.explanation}</p>
               </div>
-              <p className="rule-finding-explanation">{f.explanation}</p>
-            </div>
-          </li>
-        ))}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
