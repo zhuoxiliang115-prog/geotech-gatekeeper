@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import calculations
 from .borehole_review import judgment, rules
-from .parsers.borehole_log import process_log_pdf
+from .parsers.borehole_log import PAGE_TYPE_LOG, process_log_pdf
 from .parsers.dispatch import process_pdf
+from .soil_parameters import classification, lookup
 
 app = FastAPI(title="Geotech Lab Data API")
 
@@ -175,6 +176,72 @@ async def review_log(
             "atterberg_samples": len(lab_results["atterberg"]),
             "psd_samples": len(lab_results["psd"]),
         },
+    }
+
+
+@app.post("/soil-parameters")
+async def soil_parameters(file: UploadFile = File(...)):
+    """Parses an uploaded borehole/pavement-dip/test-pit/cored-borehole log
+    PDF, then for every log-type page classifies each stratum (Fill/Clay/
+    Sand only this pass - see soil_parameters/classification.py) and, where
+    classified, looks up its typical design-parameter range from
+    soil_typical_parameters.json (soil_parameters/lookup.py).
+
+    A stratum that can't be confidently classified (no printed consistency/
+    relative-density term and no usable SPT-N fallback, an out-of-scope
+    principal type like Silt/Gravel, Rock, etc.) gets parameters: null and
+    its classification's flag explains why - never a guessed bucket. This
+    is a dedicated endpoint (not folded into /review-log) since it's a
+    deterministic, rules-only lookup with no LLM judgment call and no
+    review-standard checks - a different, cheaper feature entirely.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    try:
+        parsed = process_log_pdf(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Failed to parse log PDF: {exc}") from exc
+
+    pages_processed = []
+    for page_row in parsed["pages"]:
+        if page_row.get("page_type") != PAGE_TYPE_LOG:
+            continue
+
+        field_test_entries = page_row.get("field_test_entries", [])
+        strata_results = []
+        for stratum in page_row.get("strata", []):
+            classified = classification.classify_stratum(stratum, field_test_entries)
+            # measured_values is always omitted here - no lab parser in this
+            # codebase yet produces a Stage-1 measured value in the shape
+            # lookup.lookup_parameters() expects; see that function's
+            # docstring for why this is intentionally dead code for now.
+            parameters = lookup.lookup_parameters(classified["bucket_id"]) if classified["classified"] else None
+            strata_results.append({"stratum": stratum, "classification": classified, "parameters": parameters})
+
+        pages_processed.append(
+            {
+                "page": page_row["page"],
+                "header": page_row.get("header"),
+                "strata_results": strata_results,
+            }
+        )
+
+    holes = {}
+    for page in pages_processed:
+        hole_id = (page.get("header") or {}).get("hole_id")
+        if hole_id is None:
+            continue
+        holes.setdefault(hole_id, []).append(page)
+
+    return {
+        "filename": file.filename,
+        "pages_processed": pages_processed,
+        "holes": holes,
     }
 
 

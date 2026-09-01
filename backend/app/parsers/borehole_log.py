@@ -78,6 +78,24 @@ _DEPTH_COLUMN_RANGES_BY_TYPE = {
     "Test Pit": (183, 197),
 }
 
+# Cored Borehole pages have no MOISTURE CONDITION / CONSISTENCY-RELATIVE
+# DENSITY columns at all - they use WEATHERING/TCR/INFERRED STRENGTH/DEFECT
+# SPACING instead, a different layout entirely (rock is a later phase, not
+# touched here). These two columns only exist on soil pages.
+_SOIL_LOG_TYPES = {"Borehole", "Pavement Dip", "Test Pit"}
+
+# Calibrated directly against real words (both header captions and actual
+# printed codes like "VS"/"MD"/"St"), not assumed from the caption alone:
+# moisture codes ("D", "w < PL", ...) sit at x0 ~428-438, consistency/
+# relative-density codes ("VS", "VL", "MD", "St", ...) at x0 ~446-455, on
+# both Borehole (Alex Canal.pdf) and Test Pit (PRUP_TP Logs.pdf) samples.
+# Pavement Dip's columns sit ~17pt further left - verified on two
+# independent Pavement Dip files (PRUP_AC, PRUP_CC), not assumed from one.
+_DEFAULT_CONSISTENCY_COLUMNS = {"moisture": (427, 442), "consistency_relative_density": (442, 461)}
+_CONSISTENCY_COLUMN_RANGES_BY_TYPE = {
+    "Pavement Dip": {"moisture": (410, 431), "consistency_relative_density": (431, 450)},
+}
+
 
 def classify_log_page(text: str) -> str:
     if _LOG_HEADER_RE.search(text):
@@ -296,6 +314,55 @@ def _extract_dcp_readings(words, depth_of):
     return readings
 
 
+def _extract_consistency_readings(words, depth_of, log_type):
+    """Moisture-condition and consistency/relative-density codes (e.g.
+    "D", "St", "MD") print in their own narrow columns, distinct from the
+    material description - previously both fell into the generic notes
+    catch-all unlabelled and with no stratum association at all. Returns
+    raw (text, depth) readings per column; attaching a reading to the
+    stratum it describes is _attach_readings_to_strata's job, since
+    depth_of() gives a continuous depth estimate, not a stratum boundary.
+    Only called for soil log types - see _SOIL_LOG_TYPES."""
+    ranges = _CONSISTENCY_COLUMN_RANGES_BY_TYPE.get(log_type, _DEFAULT_CONSISTENCY_COLUMNS)
+    readings = {}
+    for key, (lo, hi) in ranges.items():
+        rows = _cluster_rows([w for w in words if lo <= w["x0"] <= hi])
+        readings[key] = []
+        for row in rows:
+            if row["top"] <= 200:
+                continue
+            text = row["text"].strip()
+            if not text:
+                continue
+            readings[key].append({"text": text, "depth_m": depth_of(row["top"]) if depth_of else None})
+    return readings
+
+
+def _attach_readings_to_strata(strata, readings, field_name):
+    """Attaches each reading to the stratum whose depth range contains it.
+    A stratum is treated as spanning from its own depth to the next
+    stratum's depth - one consistency/moisture code describes the whole
+    layer it's printed within, not just the specific row it happens to
+    print on. A reading with no depth estimate (calibration failed) is
+    dropped rather than guessed onto a stratum."""
+    for stratum in strata:
+        stratum[field_name] = []
+    if not strata:
+        return
+    for reading in readings:
+        depth_m = reading["depth_m"]
+        if depth_m is None:
+            continue
+        owner = None
+        for stratum in strata:
+            if stratum["depth_from_m"] is not None and stratum["depth_from_m"] <= depth_m:
+                owner = stratum
+            else:
+                break
+        if owner is not None:
+            owner[field_name].append(reading["text"])
+
+
 def _extract_point_load_readings(rows):
     """"Is(50) D=1.1 MPa" (etc.) wraps across two or three of this narrow
     column's visual rows ("Is(50)" / "D=1.1 MPa" printed on separate
@@ -321,12 +388,25 @@ def _extract_point_load_readings(rows):
     return readings
 
 
-def _extract_notes(words, depth_of):
+def _extract_notes(words, depth_of, log_type=None):
     # Point load / UCS readings on rock-core pages print in the same field
     # tests column soil samples use (SPT: etc), not the geological-origin
     # remarks column - so both are scanned for either kind of content.
     field_test_rows = _cluster_rows(_column_words(words, "field_tests"))
-    note_rows = _cluster_rows(_column_words(words, "notes"))
+    note_words = _column_words(words, "notes")
+    if log_type in _SOIL_LOG_TYPES:
+        # Moisture/consistency codes are extracted separately (see
+        # _extract_consistency_readings) and attached to their owning
+        # stratum - excluded here at the word level (not by dropping whole
+        # rows) so they stop showing up as unlabelled remarks fragments
+        # without risking dropping a genuine note that happens to share a
+        # row with one. Cored Borehole is never in _SOIL_LOG_TYPES, so its
+        # existing point-load/UCS extraction (which also runs through this
+        # function) is completely unaffected.
+        cols = _CONSISTENCY_COLUMN_RANGES_BY_TYPE.get(log_type, _DEFAULT_CONSISTENCY_COLUMNS)
+        lo, hi = cols["moisture"][0], cols["consistency_relative_density"][1]
+        note_words = [w for w in note_words if not (lo <= w["x0"] <= hi)]
+    note_rows = _cluster_rows(note_words)
     for row in field_test_rows + note_rows:
         row["depth_m"] = depth_of(row["top"]) if depth_of else None
 
@@ -358,9 +438,23 @@ def parse_log_page(page) -> dict:
     result["strata"] = _extract_strata(words, depth_of)
     result["field_test_entries"] = _extract_field_test_entries(words)
     result["dcp_readings"] = _extract_dcp_readings(words, depth_of)
-    readings, remarks = _extract_notes(words, depth_of)
+    readings, remarks = _extract_notes(words, depth_of, header["log_type"])
     result["point_load_ucs_readings"] = readings
     result["notes"] = remarks
+
+    if header["log_type"] in _SOIL_LOG_TYPES:
+        consistency_readings = _extract_consistency_readings(words, depth_of, header["log_type"])
+        _attach_readings_to_strata(
+            result["strata"], consistency_readings["consistency_relative_density"], "consistency_relative_density"
+        )
+        _attach_readings_to_strata(result["strata"], consistency_readings["moisture"], "moisture_condition")
+    else:
+        # Cored Borehole (rock) - the columns don't exist on this layout;
+        # the field is still present so downstream code (soil_parameters)
+        # never has to special-case a missing key.
+        for stratum in result["strata"]:
+            stratum["consistency_relative_density"] = []
+            stratum["moisture_condition"] = []
     return result
 
 
