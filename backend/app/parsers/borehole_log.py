@@ -136,8 +136,20 @@ _NOTES_COLUMN_RANGES_BY_TYPE = {
 # or "3.10-3.18 m:") - the formation name line never does, and (per real
 # data) only ever appears as the very first row of the ADDITIONAL
 # OBSERVATIONS column, on whichever sheet starts the rock run. It does
-# not repeat on that hole's later continuation sheets.
-_FORMATION_DEPTH_PREFIX_RE = re.compile(r"^\d+(\.\d+)?(-\d+(\.\d+)?)?\s*m:")
+# not repeat on that hole's later continuation sheets. Captures the depth
+# range and the rest of the line so it can also drive
+# _extract_defect_entries, not just the formation-name boolean check.
+_DEFECT_DEPTH_PREFIX_RE = re.compile(
+    r"^(?P<from>\d+(?:\.\d+)?)(?:-(?P<to>\d+(?:\.\d+)?))?\s*m:\s*(?P<rest>.*)$"
+)
+
+# The defect type is always the first token of the rest-of-line text
+# ("P, 20°, RF, ..." / bare "DB" with nothing following) - per §3.15 of
+# the standard (VALID_DEFECT_TYPES in rules.py). Matched loosely here
+# (parsing, not validating) so an unrecognised type still comes through
+# as a real value rather than None - see rock_parameters/defects.py for
+# how natural-vs-artifact-vs-unrecognised is decided from it.
+_DEFECT_TYPE_TOKEN_RE = re.compile(r"^([A-Za-z]{1,2})\b")
 
 
 def classify_log_page(text: str) -> str:
@@ -334,6 +346,57 @@ def _extract_field_test_entries(words):
     return entries
 
 
+def _extract_defect_entries(words, log_type):
+    """Structured, depth-tagged rock-defect records from the ADDITIONAL
+    OBSERVATIONS column - the same label-driven state machine
+    _extract_field_test_entries uses (a depth-prefixed row starts a new
+    entry; a row without one continues the previous entry's wrapped
+    text), keyed on _DEFECT_DEPTH_PREFIX_RE instead of _ENTRY_LABEL_RE.
+    Real data confirms the same wrapping problem SPT/D/ES/U already
+    handle: ~5% of defect lines split across two printed rows (e.g.
+    "...40-60 mm" / "spacing, x 3" - one defect, not two). A row that
+    isn't depth-prefixed and doesn't follow an open entry (the formation
+    name, or a rare free-text remark like a water-loss note) is silently
+    dropped here rather than guessed into a defect - same as the
+    formation-name handling in _extract_notes.
+
+    Every entry is kept regardless of its type - including drilling
+    artifacts (MB/DB/DL/HB) and anything unrecognised - so nothing is
+    silently lost; deciding which types count toward defect spacing is
+    rock_parameters/defects.py's job, not this function's."""
+    if log_type != "Cored Borehole":
+        return []
+    lo, hi = _NOTES_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["notes"])
+    note_words = [w for w in words if lo <= w["x0"] <= hi]
+    rows = _cluster_rows(note_words)
+    rows = [r for r in rows if r["top"] > 200]
+    rows = [r for r in rows if "description sheets" not in r["text"].lower()]
+    rows.sort(key=lambda r: r["top"])
+
+    entries = []
+    current = None
+    for row in rows:
+        m = _DEFECT_DEPTH_PREFIX_RE.match(row["text"])
+        if m:
+            if current is not None:
+                entries.append(current)
+            depth_from = float(m.group("from"))
+            current = {
+                "depth_from_m": depth_from,
+                "depth_to_m": float(m.group("to")) if m.group("to") else depth_from,
+                "text": m.group("rest"),
+            }
+        elif current is not None:
+            current["text"] = f"{current['text']} {row['text']}"
+    if current is not None:
+        entries.append(current)
+
+    for entry in entries:
+        type_m = _DEFECT_TYPE_TOKEN_RE.match(entry["text"])
+        entry["type"] = type_m.group(1).upper() if type_m else None
+    return entries
+
+
 def _extract_dcp_readings(words, depth_of):
     """DCP readings have no "LABEL:" prefix (unlike SPT/D/ES/U), so they're
     a separate scan over the field-tests column rather than a branch of
@@ -513,7 +576,7 @@ def _extract_notes(words, depth_of, log_type=None):
     if log_type == "Cored Borehole" and note_rows:
         note_rows.sort(key=lambda r: r["top"])
         first = note_rows[0]
-        if not _FORMATION_DEPTH_PREFIX_RE.match(first["text"]):
+        if not _DEFECT_DEPTH_PREFIX_RE.match(first["text"]):
             rock_formation = first["text"]
             note_rows = note_rows[1:]
 
@@ -540,6 +603,7 @@ def parse_log_page(page) -> dict:
     result["strata"] = _extract_strata(words, depth_of, header["log_type"])
     result["field_test_entries"] = _extract_field_test_entries(words)
     result["dcp_readings"] = _extract_dcp_readings(words, depth_of)
+    result["defect_entries"] = _extract_defect_entries(words, header["log_type"])
     readings, remarks, rock_formation = _extract_notes(words, depth_of, header["log_type"])
     result["point_load_ucs_readings"] = readings
     result["notes"] = remarks

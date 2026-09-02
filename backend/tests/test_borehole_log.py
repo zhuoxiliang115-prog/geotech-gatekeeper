@@ -222,6 +222,51 @@ def test_depth_axis_not_poisoned_by_drill_rig_model_number():
     assert depths == sorted(depths)
 
 
+def test_defect_entries_are_depth_tagged_and_typed():
+    result = _parse_page("PRUP_BH Logs.pdf", 3)
+    entries = result["defect_entries"]
+    assert len(entries) > 20
+    first = entries[0]
+    assert first["depth_from_m"] == 7.96
+    assert first["depth_to_m"] == 7.96
+    assert first["type"] == "P"
+    assert first["text"] == "P, 0-10°, RF, PR, SN Fe"
+
+
+def test_defect_entry_depth_range_from_a_ranged_prefix():
+    # "3.10-3.18 m:" - a range, not a point - depth_to_m should reflect
+    # the printed range, not silently collapse to depth_from_m.
+    result = _parse_page("PRUP_BH Logs.pdf", 2)
+    ranged = next(e for e in result["defect_entries"] if e["depth_from_m"] == 3.10)
+    assert ranged["depth_to_m"] == 3.18
+
+
+def test_defect_entry_wrapped_continuation_line_is_merged():
+    # Regression test: "...40-60 mm" / "spacing, x 3" print as two visual
+    # rows for one defect - the state machine (mirroring
+    # _extract_field_test_entries) should merge them into a single entry,
+    # not two.
+    result = _parse_page("PRUP_BH Logs.pdf", 3)
+    merged = next(e for e in result["defect_entries"] if e["depth_from_m"] == 12.80)
+    assert merged["text"] == "P, 20°, RF, UN, SN Fe, 40-60 mm spacing, x 3"
+    assert not any(e["text"].strip() == "spacing, x 3" for e in result["defect_entries"])
+
+
+def test_defect_entries_keep_every_type_including_artifacts_and_unrecognised():
+    # borehole_log.py doesn't decide natural-vs-artifact-vs-unrecognised -
+    # that's rock_parameters/defects.py's job. Every entry survives here,
+    # typed, so nothing is silently lost before that decision is made.
+    result = _parse_page("Heathcote.pdf", 91)
+    types = {e["type"] for e in result["defect_entries"]}
+    assert "CZ" in types  # unrecognised - not in rules.VALID_DEFECT_TYPES
+
+
+def test_defect_entries_empty_on_soil_log_types():
+    result = _parse_page("Alex Canal.pdf", 4)
+    assert result["header"]["log_type"] == "Borehole"
+    assert result["defect_entries"] == []
+
+
 def test_cored_borehole_fix_holds_on_a_second_independent_file():
     # Not assumed from PRUP_BH01 alone - Heathcote.pdf is a different
     # project/template instance with its own weathering/notes column
