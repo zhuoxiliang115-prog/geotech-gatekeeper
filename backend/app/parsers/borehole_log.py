@@ -96,6 +96,49 @@ _CONSISTENCY_COLUMN_RANGES_BY_TYPE = {
     "Pavement Dip": {"moisture": (410, 431), "consistency_relative_density": (431, 450)},
 }
 
+# The MATERIAL DESCRIPTION column sits at a different x-range on Cored
+# Borehole pages than the shared soil range (COLUMN_RANGES["description"])
+# handles: real text starts as low as x0~154-162 (e.g. "SANDSTONE:" itself
+# prints at x0=162, below the soil range's 198 lower bound - the rock-type
+# label was being dropped entirely), and the soil range's upper bound
+# (429) reaches past the WEATHERING column and into ADDITIONAL
+# OBSERVATIONS, pulling weathering codes and the formation name into the
+# description text instead. Confirmed systematic across every Cored
+# Borehole page in the corpus (PRUP_BH01, Heathcote, WSM, Chowder Bay),
+# not assumed from one file - see the corpus-wide x0 histogram this was
+# calibrated from.
+_DESCRIPTION_COLUMN_RANGES_BY_TYPE = {
+    "Cored Borehole": (150, 299),
+}
+
+# WEATHERING column codes (XW/HW/MW/SW/FR/RS/DW, or a printed transition
+# like "MW to FR") sit at x0~301-318 - confirmed corpus-wide. The exact
+# position drifts a little by project (PRUP~301-313, Heathcote/WSM~306-
+# 317), but a clean, empty gap at x0=300 separates it from MATERIAL
+# DESCRIPTION on one side, and another gap after ~318 separates it from
+# the TCR/(SCR)/[RQD] triple (~321+) on the other, in every sampled file.
+# Only meaningful on Cored Borehole pages - soil pages have no weathering
+# concept (they use CONSISTENCY/RELATIVE DENSITY instead).
+_WEATHERING_COLUMN_RANGE = (300, 318)
+
+# ADDITIONAL OBSERVATIONS (rock defect descriptions, and the once-per-run
+# formation name printed as that column's first line) sits at x0~417-428
+# on Cored Borehole pages. The shared soil "notes" range's lower bound
+# (429) was clipping the leading digit off the overwhelming majority
+# (2866 of 2882 sampled) of defect-description depth prefixes, and
+# dropping the formation name line entirely - both "BULGO SANDSTONE" and
+# "HAWKESBURY SANDSTONE" start below 429 too.
+_NOTES_COLUMN_RANGES_BY_TYPE = {
+    "Cored Borehole": (410, 600),
+}
+
+# Every genuine defect-description line starts with its depth ("3.06 m:"
+# or "3.10-3.18 m:") - the formation name line never does, and (per real
+# data) only ever appears as the very first row of the ADDITIONAL
+# OBSERVATIONS column, on whichever sheet starts the rock run. It does
+# not repeat on that hole's later continuation sheets.
+_FORMATION_DEPTH_PREFIX_RE = re.compile(r"^\d+(\.\d+)?(-\d+(\.\d+)?)?\s*m:")
+
 
 def classify_log_page(text: str) -> str:
     if _LOG_HEADER_RE.search(text):
@@ -178,11 +221,20 @@ def _depth_calibration(words, log_type):
 
     The DEPTH column sits at a different x-position for Cored Borehole and
     Test Pit pages than for Borehole/Pavement Dip - see
-    _DEPTH_COLUMN_RANGES_BY_TYPE."""
+    _DEPTH_COLUMN_RANGES_BY_TYPE. On Cored Borehole pages specifically,
+    that x-range (125-141) sits close enough to the header block that a
+    plain numeric token from the drill rig's model name (e.g. "Drill Rig:
+    Commachio MC 450" - "450" alone, x0=134) can land inside it and get
+    mistaken for a tick - confirmed on 91 of 169 Cored Borehole pages in
+    the corpus (MC 450/MC 305/MC 205 rig models), badly distorting the
+    linear fit since it's one wild outlier among the ~9 real ticks. The
+    header block is always above top=200 (every other extraction in this
+    module already draws that same line), so ticks are only collected
+    below it."""
     lo, hi = _DEPTH_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["depth"])
     ticks = []
     for w in words:
-        if lo <= w["x0"] <= hi and _TICK_VALUE_RE.match(w["text"]):
+        if w["top"] > 200 and lo <= w["x0"] <= hi and _TICK_VALUE_RE.match(w["text"]):
             ticks.append((w["top"], float(w["text"])))
     if len(ticks) < 2:
         return None
@@ -219,14 +271,21 @@ def _paragraphs_by_gap(rows):
     return paragraphs
 
 
-def _extract_strata(words, depth_of):
-    rows = _cluster_rows(_column_words(words, "description"))
+def _extract_strata(words, depth_of, log_type=None):
+    lo, hi = _DESCRIPTION_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["description"])
+    rows = _cluster_rows([w for w in words if lo <= w["x0"] <= hi])
     # Drop the printed column caption and any header/footer text that
     # shares the description column's x-range but sits above/below the
     # actual log body.
     rows = [r for r in rows if not r["text"].startswith("MATERIAL DESCRIPTION")]
     rows = [r for r in rows if "Log continued" not in r["text"]]
     rows = [r for r in rows if "logging description" not in r["text"].lower()]
+    # On Cored Borehole pages, the widened range that reaches "SANDSTONE:"
+    # (see _DESCRIPTION_COLUMN_RANGES_BY_TYPE) also reaches the start of
+    # the page footer sentence ("...log should be read in conjunction
+    # with AECOM...") - confirmed the only fragment that lands in this
+    # range, corpus-wide, is "log should be read in conjunction with".
+    rows = [r for r in rows if "conjunction with" not in r["text"]]
     rows = [r for r in rows if r["top"] > 200]
 
     strata = []
@@ -338,6 +397,26 @@ def _extract_consistency_readings(words, depth_of, log_type):
     return readings
 
 
+def _extract_weathering_readings(words, depth_of):
+    """WEATHERING column codes (e.g. "XW", or a printed transition like
+    "MW to FR") - see _WEATHERING_COLUMN_RANGE. Only called for Cored
+    Borehole pages. The page footer's "...AECOM soil and rock logging..."
+    sentence has one word ("AECOM") that lands in this x-range too -
+    filtered out by content, the same defensive style already used for
+    "Log continued"/"logging description" elsewhere in this module."""
+    lo, hi = _WEATHERING_COLUMN_RANGE
+    rows = _cluster_rows([w for w in words if lo <= w["x0"] <= hi])
+    readings = []
+    for row in rows:
+        if row["top"] <= 200:
+            continue
+        text = row["text"].strip()
+        if not text or "AECOM" in text:
+            continue
+        readings.append({"text": text, "depth_m": depth_of(row["top"]) if depth_of else None})
+    return readings
+
+
 def _attach_readings_to_strata(strata, readings, field_name):
     """Attaches each reading to the stratum whose depth range contains it.
     A stratum is treated as spanning from its own depth to the next
@@ -393,7 +472,8 @@ def _extract_notes(words, depth_of, log_type=None):
     # tests column soil samples use (SPT: etc), not the geological-origin
     # remarks column - so both are scanned for either kind of content.
     field_test_rows = _cluster_rows(_column_words(words, "field_tests"))
-    note_words = _column_words(words, "notes")
+    notes_lo, notes_hi = _NOTES_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["notes"])
+    note_words = [w for w in words if notes_lo <= w["x0"] <= notes_hi]
     if log_type in _SOIL_LOG_TYPES:
         # Moisture/consistency codes are extracted separately (see
         # _extract_consistency_readings) and attached to their owning
@@ -415,10 +495,32 @@ def _extract_notes(words, depth_of, log_type=None):
     readings = _extract_point_load_readings(combined_rows)
 
     note_rows = [r for r in note_rows if r["top"] > 200]
+    # Widening the Cored Borehole notes range to reach real defect text
+    # (see _NOTES_COLUMN_RANGES_BY_TYPE) also reaches the tail end of the
+    # page footer ("...in conjunction with AECOM soil and rock logging
+    # description sheets.") - confirmed the only fragment that lands
+    # in-range, corpus-wide, is "description sheets." itself.
+    note_rows = [r for r in note_rows if "description sheets" not in r["text"].lower()]
+
+    # The formation name (e.g. "BULGO SANDSTONE") prints as the first line
+    # of this column on whichever sheet starts a rock run, and doesn't
+    # repeat on that hole's later continuation sheets - identified here as
+    # "the first row that isn't a depth-prefixed defect description",
+    # rather than by position relative to other columns, since real data
+    # shows it isn't reliably on its own separate visual row from the
+    # first defect line.
+    rock_formation = None
+    if log_type == "Cored Borehole" and note_rows:
+        note_rows.sort(key=lambda r: r["top"])
+        first = note_rows[0]
+        if not _FORMATION_DEPTH_PREFIX_RE.match(first["text"]):
+            rock_formation = first["text"]
+            note_rows = note_rows[1:]
+
     remarks = [
         r["text"] for r in note_rows if not _IS50_RE.search(r["text"]) and not _UCS_RE.search(r["text"])
     ]
-    return readings, remarks
+    return readings, remarks, rock_formation
 
 
 def parse_log_page(page) -> dict:
@@ -435,12 +537,13 @@ def parse_log_page(page) -> dict:
 
     result["header"] = header
     result["depth_axis_calibrated"] = depth_of is not None
-    result["strata"] = _extract_strata(words, depth_of)
+    result["strata"] = _extract_strata(words, depth_of, header["log_type"])
     result["field_test_entries"] = _extract_field_test_entries(words)
     result["dcp_readings"] = _extract_dcp_readings(words, depth_of)
-    readings, remarks = _extract_notes(words, depth_of, header["log_type"])
+    readings, remarks, rock_formation = _extract_notes(words, depth_of, header["log_type"])
     result["point_load_ucs_readings"] = readings
     result["notes"] = remarks
+    result["rock_formation"] = rock_formation
 
     if header["log_type"] in _SOIL_LOG_TYPES:
         consistency_readings = _extract_consistency_readings(words, depth_of, header["log_type"])
@@ -448,13 +551,22 @@ def parse_log_page(page) -> dict:
             result["strata"], consistency_readings["consistency_relative_density"], "consistency_relative_density"
         )
         _attach_readings_to_strata(result["strata"], consistency_readings["moisture"], "moisture_condition")
-    else:
-        # Cored Borehole (rock) - the columns don't exist on this layout;
-        # the field is still present so downstream code (soil_parameters)
-        # never has to special-case a missing key.
+        for stratum in result["strata"]:
+            stratum["weathering"] = []
+    elif header["log_type"] == "Cored Borehole":
+        weathering_readings = _extract_weathering_readings(words, depth_of)
+        _attach_readings_to_strata(result["strata"], weathering_readings, "weathering")
         for stratum in result["strata"]:
             stratum["consistency_relative_density"] = []
             stratum["moisture_condition"] = []
+    else:
+        # Unrecognised log type - every field is still present so
+        # downstream code (soil_parameters) never has to special-case a
+        # missing key.
+        for stratum in result["strata"]:
+            stratum["consistency_relative_density"] = []
+            stratum["moisture_condition"] = []
+            stratum["weathering"] = []
     return result
 
 
