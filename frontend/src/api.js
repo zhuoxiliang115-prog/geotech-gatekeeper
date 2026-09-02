@@ -40,6 +40,23 @@ export async function soilParameters(logFile) {
   return response.json()
 }
 
+export async function rockParameters(logFile) {
+  const formData = new FormData()
+  formData.append('file', logFile)
+
+  const response = await fetch(`${API_BASE_URL}/rock-parameters`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `Rock parameter derivation failed (${response.status})`)
+  }
+
+  return response.json()
+}
+
 export async function reviewLog(logFile, labFiles = []) {
   const formData = new FormData()
   formData.append('file', logFile)

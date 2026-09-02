@@ -1,4 +1,4 @@
-/* Soil Parameters findings cards - deliberately its own stylesheet, not
+/* Design Parameters findings cards - deliberately its own stylesheet, not
    shared with BoreholeLogReview.css's rule/lab/judgment finding cards.
    Same visual grammar (bold "Where" label, muted secondary metadata,
    status-colored left border) but its own tokens: classified strata get
@@ -7,7 +7,15 @@
    classification isn't a pass/fail - it's a different kind of result.
    Unclassified strata reuse the exact grey already established for
    "skipped" rule findings (not red - a missing classification isn't a
-   defect, it's "no answer available"). */
+   defect, it's "no answer available").
+
+   Shared by both soil and rock stratum cards (SoilStratumCard.jsx,
+   RockStratumCard.jsx) - a classified stratum is a classified stratum
+   regardless of which endpoint produced it, so the .soil-param-* names
+   below are kept as the base grammar rather than duplicated under a
+   parallel .rock-param-* set. The .design-param-* rules further down are
+   genuinely rock-specific additions (the two-block parameter layout and
+   the confidence tag) that soil's single-table card has no use for. */
 
 .soil-param-empty {
   color: #52514e;
@@ -179,4 +187,74 @@
   font-size: 0.72rem;
   color: #898781;
   font-style: italic;
+}
+
+/* ---- rock-card-only additions ---- */
+
+/* Is(50)-estimation is inherent to the method, not a data error - and
+   it's the dominant real-world case (91/91 real classified strata in the
+   pre-UI sanity check), not a rare exception - so its tag needs to be
+   legible on nearly every rock card without reading as alarming on every
+   card. Deliberately a calm, neutral blue rather than the amber used for
+   .soil-param-provisional-badge, which flags a specific value that might
+   be a transcription error - a different kind of concern entirely. */
+.design-param-confidence-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #1c5cb8;
+  background: #e3edfb;
+  border: 1px solid #a9c8f0;
+  border-radius: 10px;
+  padding: 0.05rem 0.45rem;
+}
+
+/* Direct-UCS ("Measured") is the rare case in practice, so it stays
+   deliberately unobtrusive - plain muted text, no pill - rather than
+   competing visually with the estimated tag it's the exception to. */
+.design-param-confidence-tag-measured {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #898781;
+}
+
+.design-param-spacing-basis {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #52514e;
+}
+
+/* The two rock parameter tables (design vs Hoek-Brown) are two different
+   lenses on the same rock, not two attempts at the same number - kept
+   visually separate blocks, each with its own heading and one-line
+   explainer, rather than merged into one table the reader might mistake
+   for a single reconciled set of values. */
+.design-param-block {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #d7d6cd;
+}
+
+.design-param-block:first-of-type {
+  margin-top: 0.45rem;
+}
+
+.design-param-block-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1c5cb8;
+}
+
+.design-param-block-note {
+  margin: 0 0 0.35rem;
+  font-size: 0.76rem;
+  font-style: italic;
+  color: #52514e;
 }

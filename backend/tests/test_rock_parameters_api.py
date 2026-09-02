@@ -67,6 +67,16 @@ def test_end_to_end_response_shape_and_is50_estimation():
     assert parameters["design_table"]["fields"]
     assert parameters["hoek_brown_table"]["fields"]
 
+    # spacing_basis must reach the endpoint response for every classified
+    # stratum, not just the direct classify_rock_stratum() return value -
+    # either a provenance string (stated/computed) or None if spacing
+    # wasn't assessed, never silently absent.
+    assert "spacing_basis" in example["classification"]
+    for sr in classified:
+        sb = sr["classification"]["spacing_basis"]
+        assert sb is None or sb.startswith(("stated: ", "computed: "))
+    assert any(sr["classification"]["spacing_basis"] is not None for sr in classified)
+
 
 def test_unclassified_strata_have_null_parameters_and_a_flag():
     resp = _upload("PRUP_BH Logs.pdf")

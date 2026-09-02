@@ -8,7 +8,7 @@ import PointLoadSection from './components/PointLoadSection'
 import PsdSection from './components/PsdSection'
 import SmddSection from './components/SmddSection'
 import BoreholeLogReview from './components/BoreholeLogReview'
-import SoilParametersReview from './components/SoilParametersReview'
+import DesignParametersReview from './components/DesignParametersReview'
 import './App.css'
 
 function LabReportUpload() {
@@ -97,7 +97,7 @@ function LabReportUpload() {
 const PAGES = {
   lab: { label: 'Lab Report Upload', Component: LabReportUpload },
   log: { label: 'Borehole Log Review', Component: BoreholeLogReview },
-  params: { label: 'Soil Parameters', Component: SoilParametersReview },
+  params: { label: 'Design Parameters', Component: DesignParametersReview },
 }
 
 function App() {

@@ -73,9 +73,27 @@ _DCP_FULL_RE = re.compile(r"^\d+$")
 # directly against real examples (Heathcote.pdf p2 for Cored Borehole,
 # PRUP_TP Logs.pdf p1 for Test Pit) rather than assumed from the caption
 # position alone.
+#
+# "Borehole" gets its own narrowed entry rather than falling through to
+# COLUMN_RANGES["depth"] (145-165): on template variants that print an RL
+# (Reduced Level) column next to DEPTH - PRUP_BH/PRUP_HA's every page, and
+# a handful of Chowder Bay/Heathcote pages - RL's tick-like values (e.g.
+# "311.0", "310.0", ... one whole metre apart, same as real depth ticks)
+# render at x0=146.3, just 1pt outside COLUMN_RANGES["rl"]'s declared
+# upper bound (145) and squarely inside the old depth range's lower bound
+# (145) - so they got vacuumed up as depth ticks alongside the genuine
+# ones at x0=164.3, corrupting the linear fit the same way the Cored
+# Borehole "MC 450" bug did (a handful of wild outliers among the real
+# ticks). Confirmed on PRUP_BH01 page 1: real depths 0-8m calibrated out
+# to bogus 154-160m instead, silently breaking depth-sort order for that
+# sheet - only surfaced once the Design Parameters UI's depth-sorted merge
+# made the wrong ordering visible. (147, 165) sits in the 1pt gap between
+# RL's 146.3 and genuine depth's 147.3, verified against every "Borehole"
+# page in the reference corpus, not just PRUP's.
 _DEPTH_COLUMN_RANGES_BY_TYPE = {
     "Cored Borehole": (125, 141),
     "Test Pit": (183, 197),
+    "Borehole": (147, 165),
 }
 
 # Cored Borehole pages have no MOISTURE CONDITION / CONSISTENCY-RELATIVE

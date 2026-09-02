@@ -149,6 +149,43 @@ def test_spacing_not_assessed_flags_when_insufficient_defect_data():
     assert result["classified"] is True
     assert any("spacing not assessed" in w for w in result["warnings"])
     assert "only - spacing not assessed" in result["classification_basis"]
+    assert result["spacing_basis"] is None
+
+
+# ---------- spacing_basis provenance ----------
+
+
+def test_spacing_basis_states_computed_when_no_stated_spacing():
+    # Real example: PRUP_BH Logs.pdf page 2, depth 6.44m - three natural
+    # defects with no stated spacing of their own, depth-diffed instead.
+    result = _classify_stratum_by_text(
+        "WSM_ BH Logs FINAL.pdf", 2, "SANDSTONE: medium to coarse grained, pale grey, tr"
+    )
+    assert result["classified"] is True
+    assert result["spacing_basis"] is not None
+    assert result["spacing_basis"].startswith("computed: gaps of ")
+    assert result["spacing_basis"].endswith("mm between consecutive natural defects")
+
+
+def test_spacing_basis_states_stated_and_wins_over_computed():
+    stratum = {"text": "SANDSTONE: fine grained, grey to green grey, variable spacing.", "depth_from_m": 5.0}
+    readings = [{"type": "point_load_is50_axial", "value_mpa": 0.28, "depth_m": 5.1}]
+    defects = [
+        {"depth_from_m": 5.1, "depth_to_m": 5.1, "type": "J", "text": "J, 20-100 mm spacing, x 5"},
+        {"depth_from_m": 5.9, "depth_to_m": 5.9, "type": "J", "text": "J, unrelated defect, no spacing stated"},
+    ]
+    result = classify_rock_stratum(stratum, 6.0, readings, defects)
+    assert result["classified"] is True
+    assert result["spacing_basis"] == "stated: 20-100mm (printed on log)"
+    assert "800" not in result["spacing_basis"]  # the computed 800mm gap must not leak in once stated wins
+
+
+def test_spacing_basis_none_when_no_defects_in_window():
+    stratum = {"text": "SANDSTONE: fine grained, green grey.", "depth_from_m": 16.0}
+    readings = [{"type": "point_load_is50_axial", "value_mpa": 1.9, "depth_m": 16.1}]
+    result = classify_rock_stratum(stratum, 17.0, readings, [])
+    assert result["classified"] is True
+    assert result["spacing_basis"] is None
 
 
 def test_seam_content_flags_without_blocking_classification():
@@ -240,6 +277,9 @@ def test_classification_across_real_corpus_does_not_crash():
                         assert result["strength"]["source"] in (
                             STRENGTH_SOURCE_DIRECT_UCS,
                             STRENGTH_SOURCE_IS50_ESTIMATED,
+                        )
+                        assert result["spacing_basis"] is None or result["spacing_basis"].startswith(
+                            ("stated: ", "computed: ")
                         )
                     else:
                         assert result["flag"]

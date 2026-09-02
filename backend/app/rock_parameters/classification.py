@@ -158,6 +158,33 @@ def _governing_spacing_mm(spacing_data: dict):
     return None
 
 
+def _format_stated_ranges(stated_spacings_mm: list):
+    parts = []
+    for lo, hi in stated_spacings_mm:
+        parts.append(f"{lo}mm" if lo == hi else f"{lo}-{hi}mm")
+    return ", ".join(parts)
+
+
+def _spacing_basis(spacing_data: dict):
+    """Explains which sub-path produced the governing spacing value -
+    stated (printed directly on the log for a generalised defect set) or
+    computed (depth-diffed between consecutive natural defects) - so the
+    UI can show provenance instead of a bare number, mirroring
+    classification_basis's own role for the strength side. Follows
+    _governing_spacing_mm's own preference order (stated wins) and lists
+    every value from whichever source wins, not just the governing one,
+    same "don't collapse the evidence" principle as compute_defect_spacing
+    itself. Returns None when neither source has anything - spacing
+    wasn't assessed, which classification_basis and warnings already say
+    explicitly elsewhere."""
+    if spacing_data["stated_spacings_mm"]:
+        return f"stated: {_format_stated_ranges(spacing_data['stated_spacings_mm'])} (printed on log)"
+    if spacing_data["computed_gaps_mm"]:
+        gaps = ", ".join(str(g) for g in spacing_data["computed_gaps_mm"])
+        return f"computed: gaps of {gaps}mm between consecutive natural defects"
+    return None
+
+
 def _has_seam_content(natural_defects: list):
     for e in natural_defects:
         if e["type"] in _SEAM_TYPE_CODES:
@@ -210,6 +237,11 @@ def classify_rock_stratum(
         {"rock_type": "Sandstone"|"Shale"|str|None,
          "classified": bool, "bucket_id": str|None, "flag": str|None,
          "classification_basis": str|None, "warnings": [str, ...]}
+    plus, only when classified, "strength": {...} and "spacing_basis":
+    str|None - the latter states which sub-path (stated on the log, or
+    computed from consecutive defect depths) produced the governing
+    spacing value baked into classification_basis, or None if spacing
+    wasn't assessed at all (see _spacing_basis).
 
     next_stratum_depth_m bounds the candidate interval (this stratum's
     own depth to the next stratum's, or open-ended for the last stratum
@@ -293,6 +325,7 @@ def classify_rock_stratum(
 
     spacing_data = compute_defect_spacing(defect_entries, depth_from, depth_to)
     governing_spacing_mm = _governing_spacing_mm(spacing_data)
+    spacing_basis = _spacing_basis(spacing_data)
 
     if governing_spacing_mm is not None:
         spacing_class = _spacing_implied_class(rock_type, governing_spacing_mm)
@@ -331,4 +364,5 @@ def classify_rock_stratum(
     result = _classified(bucket_id, basis, warnings)
     result["rock_type"] = rock_type
     result["strength"] = strength
+    result["spacing_basis"] = spacing_basis
     return result

@@ -222,6 +222,25 @@ def test_depth_axis_not_poisoned_by_drill_rig_model_number():
     assert depths == sorted(depths)
 
 
+def test_borehole_depth_axis_not_poisoned_by_rl_column():
+    # Regression test: PRUP_BH01 page 1 (a plain "Borehole" sheet, not
+    # Cored Borehole) prints an RL (Reduced Level) column right next to
+    # DEPTH - RL's tick-like values ("311.0", "310.0", ...) render at
+    # x0=146.3, 1pt outside COLUMN_RANGES["rl"]'s declared upper bound
+    # (145) and inside the old shared depth range's lower bound (145),
+    # so they got vacuumed up as depth ticks alongside the genuine ones
+    # at x0=164.3 - the same "wild outliers poison the linear fit"
+    # failure mode as the Cored Borehole "MC 450" bug above, just via a
+    # different column. Previously produced depths of 154-160m on a
+    # 20.32m-deep hole; only surfaced once the Design Parameters UI's
+    # depth-sorted merge made the resulting wrong sort order visible.
+    result = _parse_page("PRUP_BH Logs.pdf", 1)
+    depths = [s["depth_from_m"] for s in result["strata"] if s["depth_from_m"] is not None]
+    assert depths, "expected at least one calibrated depth"
+    assert all(0 <= d <= 20.32 for d in depths)
+    assert depths == sorted(depths)
+
+
 def test_defect_entries_are_depth_tagged_and_typed():
     result = _parse_page("PRUP_BH Logs.pdf", 3)
     entries = result["defect_entries"]
