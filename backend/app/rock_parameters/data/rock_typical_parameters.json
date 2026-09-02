@@ -1,0 +1,46 @@
+{
+  "rock_typical_parameters": {
+    "source": "TYPICAL PARAMETERS (2)(1).xlsx, Material Properties sheet",
+    "notes": "design_table and hoek_brown_table are independent parameter sets for the same class labels (bucket_id shared across both), not interchangeable - see the E_prime_MPa vs Emass_MPa comparison during development. Classification (weathering/strength/spacing -> class) is handled entirely by classification.py per the Sydney Classification System; this file is parameters-only, no classification logic.",
+    "design_table": {
+      "source": "rows 54-63, columns B-T",
+      "units": {
+        "gamma_kNm3": "kN/m3", "cu_kPa": "kPa", "c_prime_kPa": "kPa", "phi_prime_deg": "degrees",
+        "E_prime_MPa": "MPa", "poissons_ratio": "-", "end_bearing_ult_MPa": "MPa", "end_bearing_serv_MPa": "MPa",
+        "shaft_adhesion_ult_kPa": "kPa", "anchor_bond_ult_kPa": "kPa", "active_wedge_angle_deg": "degrees"
+      },
+      "buckets": [
+        { "bucket_id": "shale_class_1", "geological_unit": "Shale", "label": "Class I", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": null, "phi_prime_deg": null, "K0": null, "Kp": null, "reduced_phi_deg": null, "reduced_c_kPa": null, "E_prime_MPa": 2000, "poissons_ratio": 0.2, "end_bearing_ult_MPa": 120, "end_bearing_serv_MPa": 8, "shaft_adhesion_ult_kPa": 1000, "anchor_bond_ult_kPa": 1500, "active_wedge_angle_deg": 0 },
+        { "bucket_id": "shale_class_2", "geological_unit": "Shale", "label": "Class II", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": null, "phi_prime_deg": null, "K0": null, "Kp": null, "reduced_phi_deg": null, "reduced_c_kPa": null, "E_prime_MPa": 1000, "poissons_ratio": 0.2, "end_bearing_ult_MPa": 30, "end_bearing_serv_MPa": 6, "shaft_adhesion_ult_kPa": 900, "anchor_bond_ult_kPa": 1000, "active_wedge_angle_deg": 0 },
+        { "bucket_id": "shale_class_3", "geological_unit": "Shale", "label": "Class III", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": 100, "phi_prime_deg": 28, "K0": 0.53, "Kp": 2.77, "reduced_phi_deg": 11.97, "reduced_c_kPa": 74.16, "E_prime_MPa": 700, "poissons_ratio": 0.25, "end_bearing_ult_MPa": 6, "end_bearing_serv_MPa": 3.5, "shaft_adhesion_ult_kPa": 600, "anchor_bond_ult_kPa": 700, "active_wedge_angle_deg": 31 },
+        { "bucket_id": "shale_class_4", "geological_unit": "Shale", "label": "Class IV", "gamma_kNm3": 23, "cu_kPa": null, "c_prime_kPa": 20, "phi_prime_deg": 28, "K0": 0.53, "Kp": 2.77, "reduced_phi_deg": 11.97, "reduced_c_kPa": 14.83, "E_prime_MPa": 300, "poissons_ratio": 0.25, "end_bearing_ult_MPa": 3, "end_bearing_serv_MPa": 1, "shaft_adhesion_ult_kPa": 150, "anchor_bond_ult_kPa": 300, "active_wedge_angle_deg": 31 },
+        { "bucket_id": "shale_class_5", "geological_unit": "Shale", "label": "Class V", "gamma_kNm3": 22, "cu_kPa": null, "c_prime_kPa": 10, "phi_prime_deg": 28, "K0": 0.53, "Kp": 2.77, "reduced_phi_deg": 11.97, "reduced_c_kPa": 7.42, "E_prime_MPa": 50, "E_prime_MPa_source_note": "design table gives 50, Hoek-Brown table's Emass for this same class gives 100 - one is likely a typo, needs verification against source", "poissons_ratio": 0.3, "end_bearing_ult_MPa": 3, "end_bearing_serv_MPa": 0.7, "shaft_adhesion_ult_kPa": 100, "anchor_bond_ult_kPa": 150, "active_wedge_angle_deg": 31 },
+        { "bucket_id": "sandstone_class_1", "geological_unit": "Sandstone", "label": "Class I", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": null, "phi_prime_deg": null, "K0": null, "Kp": null, "reduced_phi_deg": null, "reduced_c_kPa": null, "E_prime_MPa": 2000, "poissons_ratio": 0.2, "end_bearing_ult_MPa": 120, "end_bearing_serv_MPa": 12, "shaft_adhesion_ult_kPa": 3000, "anchor_bond_ult_kPa": 3000, "active_wedge_angle_deg": 0 },
+        { "bucket_id": "sandstone_class_2", "geological_unit": "Sandstone", "label": "Class II", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": null, "phi_prime_deg": null, "K0": null, "Kp": null, "reduced_phi_deg": null, "reduced_c_kPa": null, "E_prime_MPa": 900, "poissons_ratio": 0.2, "end_bearing_ult_MPa": 60, "end_bearing_serv_MPa": 12, "shaft_adhesion_ult_kPa": 1500, "anchor_bond_ult_kPa": 2000, "active_wedge_angle_deg": 0 },
+        { "bucket_id": "sandstone_class_3", "geological_unit": "Sandstone", "label": "Class III", "gamma_kNm3": 24, "cu_kPa": null, "c_prime_kPa": 200, "phi_prime_deg": 37, "K0": 0.40, "Kp": 4.02, "reduced_phi_deg": 22.18, "reduced_c_kPa": 148.32, "E_prime_MPa": 350, "poissons_ratio": 0.25, "end_bearing_ult_MPa": 20, "end_bearing_serv_MPa": 6, "shaft_adhesion_ult_kPa": 800, "anchor_bond_ult_kPa": 1000, "active_wedge_angle_deg": 26.5 },
+        { "bucket_id": "sandstone_class_4", "geological_unit": "Sandstone", "label": "Class IV", "gamma_kNm3": 23, "cu_kPa": null, "c_prime_kPa": 100, "phi_prime_deg": 35, "K0": 0.43, "Kp": 3.69, "reduced_phi_deg": 19.87, "reduced_c_kPa": 74.16, "E_prime_MPa": 100, "poissons_ratio": 0.25, "end_bearing_ult_MPa": 4, "end_bearing_serv_MPa": 3.5, "shaft_adhesion_ult_kPa": 250, "anchor_bond_ult_kPa": 400, "active_wedge_angle_deg": 27.5 },
+        { "bucket_id": "sandstone_class_5", "geological_unit": "Sandstone", "label": "Class V", "gamma_kNm3": 22, "cu_kPa": null, "c_prime_kPa": 30, "phi_prime_deg": 35, "K0": 0.43, "Kp": 3.69, "reduced_phi_deg": 19.87, "reduced_c_kPa": 22.25, "E_prime_MPa": 50, "poissons_ratio": 0.3, "end_bearing_ult_MPa": 3, "end_bearing_serv_MPa": 1, "shaft_adhesion_ult_kPa": 150, "anchor_bond_ult_kPa": 200, "active_wedge_angle_deg": 27.5 }
+      ]
+    },
+    "hoek_brown_table": {
+      "source": "rows 41-50, columns W-AJ",
+      "footnote": "c_star_kPa and phi_star_deg calculated at 500 kPa normal stress (sigma_v at approx. 20m depth)",
+      "units": {
+        "gamma_kNm3": "kN/m3", "min_ucs_MPa": "MPa", "poissons_ratio": "-", "sti_MPa": "MPa",
+        "hoek_brown_mi": "-", "Emass_MPa": "MPa", "c_star_kPa": "kPa", "phi_star_deg": "degrees", "hoek_brown_s": "-", "mb": "-"
+      },
+      "buckets": [
+        { "bucket_id": "shale_class_1", "geological_unit": "Shale", "label": "SH-1", "gamma_kNm3": 24, "min_ucs_MPa": 16, "poissons_ratio": 0.2, "sti_MPa": null, "hoek_brown_mi": 8, "Emass_MPa": 2000, "c_star_kPa": 380, "phi_star_deg": 46, "GSI": 60, "hoek_brown_s": 0.012, "mb": 1.9 },
+        { "bucket_id": "shale_class_2", "geological_unit": "Shale", "label": "SH-2", "gamma_kNm3": 24, "min_ucs_MPa": 7, "poissons_ratio": 0.2, "sti_MPa": 3.3, "hoek_brown_mi": 8, "Emass_MPa": 1000, "c_star_kPa": 240, "phi_star_deg": 40, "GSI": 60, "hoek_brown_s": 0.012, "mb": 1.9 },
+        { "bucket_id": "shale_class_3", "geological_unit": "Shale", "label": "SH-3", "gamma_kNm3": 24, "min_ucs_MPa": 2, "poissons_ratio": 0.25, "sti_MPa": 2, "hoek_brown_mi": 8, "Emass_MPa": 700, "c_star_kPa": 120, "phi_star_deg": 27, "GSI": 50, "hoek_brown_s": 0.004, "mb": 1.3 },
+        { "bucket_id": "shale_class_4", "geological_unit": "Shale", "label": "SH-4", "gamma_kNm3": 22, "min_ucs_MPa": 1, "poissons_ratio": 0.25, "sti_MPa": null, "hoek_brown_mi": 8, "Emass_MPa": 300, "c_star_kPa": 80, "phi_star_deg": 20, "GSI": 40, "hoek_brown_s": 0.001, "mb": 0.9 },
+        { "bucket_id": "shale_class_5", "geological_unit": "Shale", "label": "SH-5", "gamma_kNm3": 20, "min_ucs_MPa": 1, "poissons_ratio": 0.3, "sti_MPa": null, "hoek_brown_mi": 8, "Emass_MPa": 100, "Emass_MPa_source_note": "Hoek-Brown table gives 100, design table's E_prime for this same class gives 50 - one is likely a typo, needs verification against source", "c_star_kPa": 70, "phi_star_deg": 18, "GSI": 30, "hoek_brown_s": 0.0004, "mb": 0.7 },
+        { "bucket_id": "sandstone_class_1", "geological_unit": "Sandstone", "label": "SST-1", "gamma_kNm3": 24, "min_ucs_MPa": 24, "poissons_ratio": 0.2, "sti_MPa": null, "hoek_brown_mi": 17, "Emass_MPa": 2000, "c_star_kPa": 650, "phi_star_deg": 58, "GSI": 70, "hoek_brown_s": 0.036, "mb": 5.8 },
+        { "bucket_id": "sandstone_class_2", "geological_unit": "Sandstone", "label": "SST-2", "gamma_kNm3": 24, "min_ucs_MPa": 12, "poissons_ratio": 0.2, "sti_MPa": null, "hoek_brown_mi": 17, "Emass_MPa": 1000, "c_star_kPa": 400, "phi_star_deg": 54, "GSI": 70, "hoek_brown_s": 0.036, "mb": 5.8 },
+        { "bucket_id": "sandstone_class_3", "geological_unit": "Sandstone", "label": "SST-3", "gamma_kNm3": 24, "min_ucs_MPa": 7, "poissons_ratio": 0.25, "sti_MPa": null, "hoek_brown_mi": 17, "Emass_MPa": 700, "c_star_kPa": 200, "phi_star_deg": 46, "GSI": 55, "hoek_brown_s": 0.007, "mb": 3.4 },
+        { "bucket_id": "sandstone_class_4", "geological_unit": "Sandstone", "label": "SST-4", "gamma_kNm3": 23, "min_ucs_MPa": 2, "poissons_ratio": 0.25, "sti_MPa": null, "hoek_brown_mi": 17, "Emass_MPa": 350, "c_star_kPa": 130, "phi_star_deg": 33, "GSI": 45, "hoek_brown_s": 0.002, "mb": 2.4 },
+        { "bucket_id": "sandstone_class_5", "geological_unit": "Sandstone", "label": "SST-5", "gamma_kNm3": 22, "min_ucs_MPa": 1, "poissons_ratio": 0.3, "sti_MPa": null, "hoek_brown_mi": 17, "Emass_MPa": 100, "c_star_kPa": 90, "phi_star_deg": 24, "GSI": 30, "hoek_brown_s": 0.0004, "mb": 1.4 }
+      ]
+    }
+  }
+}

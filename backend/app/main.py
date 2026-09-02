@@ -9,6 +9,8 @@ from . import calculations
 from .borehole_review import judgment, rules
 from .parsers.borehole_log import PAGE_TYPE_LOG, process_log_pdf
 from .parsers.dispatch import process_pdf
+from .rock_parameters import classification as rock_classification
+from .rock_parameters import lookup as rock_lookup
 from .soil_parameters import classification, lookup
 
 app = FastAPI(title="Geotech Lab Data API")
@@ -221,6 +223,91 @@ async def soil_parameters(file: UploadFile = File(...)):
             # lookup.lookup_parameters() expects; see that function's
             # docstring for why this is intentionally dead code for now.
             parameters = lookup.lookup_parameters(classified["bucket_id"]) if classified["classified"] else None
+            strata_results.append({"stratum": stratum, "classification": classified, "parameters": parameters})
+
+        pages_processed.append(
+            {
+                "page": page_row["page"],
+                "header": page_row.get("header"),
+                "strata_results": strata_results,
+            }
+        )
+
+    holes = {}
+    for page in pages_processed:
+        hole_id = (page.get("header") or {}).get("hole_id")
+        if hole_id is None:
+            continue
+        holes.setdefault(hole_id, []).append(page)
+
+    return {
+        "filename": file.filename,
+        "pages_processed": pages_processed,
+        "holes": holes,
+    }
+
+
+@app.post("/rock-parameters")
+async def rock_parameters(file: UploadFile = File(...)):
+    """Parses an uploaded Cored Borehole log PDF, then for every Cored
+    Borehole page classifies each rock stratum (Sandstone/Shale only this
+    pass - see rock_parameters/classification.py) into a Class I-V bucket
+    per the Sydney Classification System (Table 9.1: UCS + defect spacing,
+    with a seam-content flag - see reference/sydney-classification-system.md)
+    and, where classified, looks up its typical design parameters from
+    rock_typical_parameters.json (rock_parameters/lookup.py) - both the
+    design_table and hoek_brown_table, kept as two separate parameter sets
+    since they aren't interchangeable.
+
+    Only Cored Borehole pages are processed - other log types never carry
+    Sandstone/Shale strata, so classify_rock_stratum() would just report
+    "no recognisable rock type" for every one of their strata; skipping
+    them here keeps the response to what this feature actually covers.
+
+    A stratum that can't be confidently classified (no rock type text
+    recognised, an out-of-scope rock type like Claystone, or no UCS/Is(50)
+    reading nearby) gets parameters: null and its classification's flag
+    explains why - never a guessed bucket. Where classification did use an
+    Is(50)->UCS estimate rather than a direct UCS test, that's carried in
+    the classification's own "strength" field (source, confidence) and
+    restated in classification_basis and warnings - never silently
+    presented as equivalent to a direct-UCS classification. This is a
+    dedicated endpoint (not folded into /review-log or /soil-parameters)
+    for the same reason those are separate: deterministic, rules-only,
+    no LLM judgment call.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    try:
+        parsed = process_log_pdf(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Failed to parse log PDF: {exc}") from exc
+
+    pages_processed = []
+    for page_row in parsed["pages"]:
+        if page_row.get("page_type") != PAGE_TYPE_LOG:
+            continue
+        if (page_row.get("header") or {}).get("log_type") != "Cored Borehole":
+            continue
+
+        point_load_ucs_readings = page_row.get("point_load_ucs_readings", [])
+        defect_entries = page_row.get("defect_entries", [])
+        strata = page_row.get("strata", [])
+
+        strata_results = []
+        for i, stratum in enumerate(strata):
+            next_stratum_depth_m = strata[i + 1]["depth_from_m"] if i + 1 < len(strata) else None
+            classified = rock_classification.classify_rock_stratum(
+                stratum, next_stratum_depth_m, point_load_ucs_readings, defect_entries
+            )
+            parameters = (
+                rock_lookup.lookup_rock_parameters(classified["bucket_id"]) if classified["classified"] else None
+            )
             strata_results.append({"stratum": stratum, "classification": classified, "parameters": parameters})
 
         pages_processed.append(
