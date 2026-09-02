@@ -26,7 +26,15 @@ from .defects import compute_defect_spacing
 
 _ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
 
-_ROCK_TYPE_RE = re.compile(r"\b(SANDSTONE|SHALE)\b")
+# Every rock-name word actually observed in the reference corpus (see
+# Stage 3b's earlier investigation), not just Sandstone/Shale - so a
+# Claystone/Siltstone/etc. stratum gets a specific "recognised, but no
+# Table 9.1 bucket for it" flag instead of falling into the generic
+# "nothing recognisable" one, mirroring how Silt/Gravel are handled in
+# soil_parameters/classification.py.
+_ROCK_TYPE_RE = re.compile(
+    r"\b(SANDSTONE|SHALE|CLAYSTONE|SILTSTONE|CONGLOMERATE|LAMINITE|MUDSTONE|BRECCIA|LIMESTONE|COAL|TUFF|BASALT)\b"
+)
 
 # Table 9.1 - "UCS > threshold (MPa)" per class, descending, first match
 # wins. Class V's floor (UCS>1) is the lowest the table defines; UCS at
@@ -61,6 +69,26 @@ _SHALE_SPACING_BANDS = [(1, 600), (2, 200), (3, 60), (4, 20)]
 # computation, which is explicitly deferred.
 _SEAM_TYPE_CODES = {"CS", "SS", "IS", "EW"}
 _CLAY_INFILL_RE = re.compile(r"\bCT\b|\bclay\b", re.IGNORECASE)
+
+# UCS ~ 20 x Is(50) - not an independently-sourced conversion factor, but
+# the exact multiplier printed on the logs' own INFERRED STRENGTH column
+# legend ("20 x Is(50)"), i.e. the convention the logger already used to
+# plot Is(50) points on the same strength scale as direct UCS tests. No
+# rock-type-specific variant - nothing available supports differentiating
+# Sandstone vs Shale here (per explicit instruction), so it's applied
+# uniformly. This is a real, material estimate, not a rounding
+# convenience: Bertuzzi 2019's Table 9.3 (a real Sydney tunnelling
+# drill-hole database, 1000+ tests per class in places) shows Is(50)
+# ranges overlapping almost completely across all five classes for both
+# rock types - an Is(50)-derived class is genuinely indicative, not a
+# soft caveat on an otherwise-solid number. See STRENGTH_SOURCE_DIRECT_UCS
+# / STRENGTH_SOURCE_IS50_ESTIMATED and classify_rock_stratum's "strength"
+# output field, which exists specifically so this distinction is never
+# buried in a routine note.
+IS50_TO_UCS_MULTIPLIER = 20
+
+STRENGTH_SOURCE_DIRECT_UCS = "direct_ucs"
+STRENGTH_SOURCE_IS50_ESTIMATED = "is50_estimated"
 
 
 def _classified(bucket_id, basis, warnings=None):
@@ -139,6 +167,41 @@ def _has_seam_content(natural_defects: list):
     return False
 
 
+def _resolve_strength(point_load_ucs_readings: list, depth_from: float, depth_to: float):
+    """Finds the UCS value to classify against Table 9.1 within this
+    window: a direct UCS reading always wins when one exists (real data,
+    never estimated); otherwise the nearest Is(50) reading (axial or
+    diametral - the log's own "20 x Is(50)" legend doesn't distinguish
+    them either) is converted via IS50_TO_UCS_MULTIPLIER. Returns None if
+    the window has no strength reading of either kind.
+
+    Returns {"ucs_mpa": float, "source": STRENGTH_SOURCE_*,
+    "is50_mpa": float|None} - is50_mpa is only set (and only meaningful)
+    when source is STRENGTH_SOURCE_IS50_ESTIMATED, so the raw reading an
+    engineer would need to re-derive with a different factor is always
+    available, not just the converted number."""
+    in_window = [
+        r for r in point_load_ucs_readings if r.get("depth_m") is not None and depth_from <= r["depth_m"] < depth_to
+    ]
+
+    ucs_candidates = [r for r in in_window if r["type"] == "ucs"]
+    if ucs_candidates:
+        nearest = min(ucs_candidates, key=lambda r: abs(r["depth_m"] - depth_from))
+        return {"ucs_mpa": nearest["value_mpa"], "source": STRENGTH_SOURCE_DIRECT_UCS, "is50_mpa": None}
+
+    is50_candidates = [r for r in in_window if r["type"].startswith("point_load_is50")]
+    if is50_candidates:
+        nearest = min(is50_candidates, key=lambda r: abs(r["depth_m"] - depth_from))
+        is50_mpa = nearest["value_mpa"]
+        return {
+            "ucs_mpa": round(is50_mpa * IS50_TO_UCS_MULTIPLIER, 2),
+            "source": STRENGTH_SOURCE_IS50_ESTIMATED,
+            "is50_mpa": is50_mpa,
+        }
+
+    return None
+
+
 def classify_rock_stratum(
     stratum: dict, next_stratum_depth_m, point_load_ucs_readings: list, defect_entries: list
 ) -> dict:
@@ -161,14 +224,13 @@ def classify_rock_stratum(
     convention soil_parameters/classification.py already uses for
     field_test_entries.
 
-    UCS only ever comes from a direct type=="ucs" reading in this
-    window - an Is(50) reading alone does not satisfy the strength gate.
-    AS1726-2017's own Is(50)->UCS multiplier is explicitly not fixed (it
-    "varies widely by rock type" per the AECOM standard), so converting
-    one to compare against Table 9.1's UCS-denominated thresholds isn't
-    done here; a stratum with only a nearby Is(50) reading is flagged
-    with that distinction rather than silently converted or lumped in
-    with "nothing nearby at all".
+    A direct UCS reading in this window always wins when one exists.
+    Otherwise the nearest Is(50) reading is converted via
+    IS50_TO_UCS_MULTIPLIER (see its docstring) - a real, material
+    estimate, not a routine caveat, so classification_basis says so
+    explicitly and the returned "strength" field always carries both the
+    raw Is(50) value and an explicit confidence marker alongside the
+    estimated UCS, never just the converted number.
     """
     text = stratum.get("text", "") or ""
     rock_type = _find_rock_type(text)
@@ -188,50 +250,55 @@ def classify_rock_stratum(
     if depth_from is not None and depth_to is None:
         depth_to = depth_from + 1000  # last stratum on a page - effectively open-ended
 
-    ucs_reading = None
-    is50_nearby = False
+    strength = None
     if depth_from is not None and depth_to is not None:
-        in_window = [
-            r for r in point_load_ucs_readings if r.get("depth_m") is not None and depth_from <= r["depth_m"] < depth_to
-        ]
-        ucs_candidates = [r for r in in_window if r["type"] == "ucs"]
-        if ucs_candidates:
-            ucs_reading = min(ucs_candidates, key=lambda r: abs(r["depth_m"] - depth_from))
-        is50_nearby = any(r["type"].startswith("point_load_is50") for r in in_window)
+        strength = _resolve_strength(point_load_ucs_readings, depth_from, depth_to)
 
-    if ucs_reading is None:
-        if is50_nearby:
-            reason = (
-                "an Is(50) reading is nearby but no direct UCS reading - Is(50)->UCS conversion isn't "
-                "reliable enough (the multiplier varies by rock type per AS1726-2017) to classify against "
-                "Table 9.1 from it; not classified, verify against Table 9.1 manually"
-            )
-        else:
-            reason = "no strength reading nearby to classify against Table 9.1."
-        result = _not_classified(reason)
+    if strength is None:
+        result = _not_classified("no UCS or Is(50) reading nearby to classify against Table 9.1.")
         result["rock_type"] = rock_type
         return result
 
-    ucs_mpa = ucs_reading["value_mpa"]
+    ucs_mpa = strength["ucs_mpa"]
+    is_estimated = strength["source"] == STRENGTH_SOURCE_IS50_ESTIMATED
+    strength["confidence"] = "low" if is_estimated else "high"
+
+    def _ucs_description(class_number=None):
+        class_suffix = f" (Class {_ROMAN[class_number]})" if class_number is not None else ""
+        if is_estimated:
+            return (
+                f"estimated from Is(50)={strength['is50_mpa']} MPa via UCS ~ {IS50_TO_UCS_MULTIPLIER}x Is50 "
+                f"(={ucs_mpa} MPa, not a direct UCS test) - indicative only{class_suffix}"
+            )
+        return f"UCS={ucs_mpa} MPa{class_suffix}"
+
     ucs_class, ucs_tied_with = _ucs_implied_class(rock_type, ucs_mpa)
     if ucs_class is None:
+        floor = _SHALE_UCS_TIE_FLOOR if rock_type == "Shale" else 1
         result = _not_classified(
-            f"UCS={ucs_mpa} MPa is below Table 9.1's lowest defined class threshold for {rock_type} "
-            f"(Class V requires UCS>{_SHALE_UCS_TIE_FLOOR if rock_type == 'Shale' else 1} MPa) - "
-            "not classified, verify against Table 9.1."
+            f"{_ucs_description()} is below Table 9.1's lowest defined class threshold for {rock_type} "
+            f"(Class V requires UCS>{floor} MPa) - not classified, verify against Table 9.1."
         )
         result["rock_type"] = rock_type
         return result
 
+    warnings = []
+    if is_estimated:
+        warnings.append(
+            f"strength is estimated from Is(50)={strength['is50_mpa']} MPa via UCS ~ "
+            f"{IS50_TO_UCS_MULTIPLIER}x Is50, not a direct UCS test - Bertuzzi 2019's own drill-hole "
+            "database shows Is(50) ranges overlapping heavily across classes, so treat this class as "
+            "indicative only, not equivalent to a direct-UCS classification."
+        )
+
     spacing_data = compute_defect_spacing(defect_entries, depth_from, depth_to)
     governing_spacing_mm = _governing_spacing_mm(spacing_data)
-    warnings = []
 
     if governing_spacing_mm is not None:
         spacing_class = _spacing_implied_class(rock_type, governing_spacing_mm)
         final_class = max(ucs_class, spacing_class)
         basis = (
-            f"UCS={ucs_mpa} MPa (Class {_ROMAN[ucs_class]}) + defect spacing={governing_spacing_mm} mm "
+            f"{_ucs_description(ucs_class)} + defect spacing={governing_spacing_mm} mm "
             f"(Class {_ROMAN[spacing_class]}) -> Class {_ROMAN[final_class]} (more conservative of the two, "
             "per Table 9.1)"
         )
@@ -242,10 +309,7 @@ def classify_rock_stratum(
             )
     else:
         final_class = ucs_class
-        basis = (
-            f"UCS={ucs_mpa} MPa (Class {_ROMAN[ucs_class]}) only - spacing not assessed "
-            "(insufficient defect data in this interval)"
-        )
+        basis = f"{_ucs_description(ucs_class)} only - spacing not assessed (insufficient defect data in this interval)"
         warnings.append(
             "spacing not assessed (insufficient defect data in this interval) - verify against Table 9.1."
         )
@@ -266,4 +330,5 @@ def classify_rock_stratum(
     bucket_id = f"{rock_type.lower()}_class_{final_class}"
     result = _classified(bucket_id, basis, warnings)
     result["rock_type"] = rock_type
+    result["strength"] = strength
     return result
