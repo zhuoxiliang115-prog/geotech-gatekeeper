@@ -1,14 +1,17 @@
 import asyncio
 import io
+import json
 
 import pdfplumber
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
 from . import calculations
 from .borehole_review import judgment, rules
 from .parsers.borehole_log import PAGE_TYPE_LOG, process_log_pdf
 from .parsers.dispatch import process_pdf
+from .report import build_report_pdf
 from .rock_parameters import classification as rock_classification
 from .rock_parameters import lookup as rock_lookup
 from .soil_parameters import classification, lookup
@@ -340,6 +343,49 @@ async def rock_parameters(file: UploadFile = File(...)):
         "pages_processed": pages_processed,
         "holes": holes,
     }
+
+
+@app.post("/report")
+async def report(
+    file: UploadFile = File(...),
+    review_log_result: str | None = Form(default=None),
+    soil_parameters_result: str | None = Form(default=None),
+    rock_parameters_result: str | None = Form(default=None),
+):
+    """Formats whatever's already been fetched from /review-log,
+    /soil-parameters, and/or /rock-parameters (any/all optional) into a
+    downloadable PDF, so a review can be handed to a client instead of
+    only viewed as a live web page.
+
+    `file` supplies only the filename shown in the report header - it is
+    not re-parsed, and the three result fields are not recomputed from it.
+    Callers pass back exactly what those endpoints already returned, as
+    JSON-encoded form fields. No database, nothing is saved - this is a
+    pure formatting pass over data the caller already has.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    def _parse_result_field(name: str, raw: str | None) -> dict | None:
+        if raw is None:
+            return None
+        try:
+            return json.loads(raw)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON in {name}: {exc}") from exc
+
+    pdf_bytes = build_report_pdf(
+        file.filename,
+        review_log_result=_parse_result_field("review_log_result", review_log_result),
+        soil_parameters_result=_parse_result_field("soil_parameters_result", soil_parameters_result),
+        rock_parameters_result=_parse_result_field("rock_parameters_result", rock_parameters_result),
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{file.filename.rsplit(".", 1)[0]}-report.pdf"'},
+    )
 
 
 @app.post("/upload-log")

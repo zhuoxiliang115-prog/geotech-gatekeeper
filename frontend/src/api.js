@@ -57,6 +57,35 @@ export async function rockParameters(logFile) {
   return response.json()
 }
 
+/**
+ * POST /report - formats whatever's already been fetched from
+ * /review-log, /soil-parameters, and/or /rock-parameters (any/all
+ * optional) into a downloadable PDF. `results` values are the raw parsed
+ * JSON already held in the calling page's state, JSON-stringified here
+ * since the endpoint takes them as multipart form fields, not a JSON
+ * body (it needs `file` alongside them). No recomputation - the file
+ * itself is only used for its filename.
+ */
+export async function downloadReport(logFile, { reviewLogResult, soilParametersResult, rockParametersResult } = {}) {
+  const formData = new FormData()
+  formData.append('file', logFile)
+  if (reviewLogResult) formData.append('review_log_result', JSON.stringify(reviewLogResult))
+  if (soilParametersResult) formData.append('soil_parameters_result', JSON.stringify(soilParametersResult))
+  if (rockParametersResult) formData.append('rock_parameters_result', JSON.stringify(rockParametersResult))
+
+  const response = await fetch(`${API_BASE_URL}/report`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `Report generation failed (${response.status})`)
+  }
+
+  return response.blob()
+}
+
 export async function reviewLog(logFile, labFiles = []) {
   const formData = new FormData()
   formData.append('file', logFile)

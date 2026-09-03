@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { reviewLog } from '../api'
+import { downloadReport, reviewLog } from '../api'
+import { triggerDownload } from '../downloadFile'
 import HoleTabs from './HoleTabs'
 import './BoreholeLogReview.css'
 
@@ -15,6 +16,17 @@ export default function BoreholeLogReview() {
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
+  const [downloadError, setDownloadError] = useState(null)
+
+  async function handleDownloadReport() {
+    setDownloadError(null)
+    try {
+      const blob = await downloadReport(logFile, { reviewLogResult: result })
+      triggerDownload(blob, `${result.filename.replace(/\.pdf$/i, '')}-report.pdf`)
+    } catch (err) {
+      setDownloadError(err.message)
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -104,6 +116,11 @@ export default function BoreholeLogReview() {
           )}
 
           <HoleTabs holes={result.holes} judgmentModel={result.judgment_model} />
+
+          <button type="button" onClick={handleDownloadReport} className="review-submit-button">
+            Download report (PDF)
+          </button>
+          {downloadError && <p className="error">Error: {downloadError}</p>}
 
           <details className="raw-json">
             <summary>Raw JSON response</summary>
