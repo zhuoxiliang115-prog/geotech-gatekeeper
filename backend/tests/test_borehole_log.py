@@ -13,8 +13,12 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.parsers.borehole_log import (
+    COLUMN_RANGES,
     PAGE_TYPE_LOG,
     PAGE_TYPE_PHOTO_REPORT,
+    _depth_calibration,
+    _MAX_OUTLIER_REJECTIONS,
+    _TOTAL_DEPTH_MARGIN_M,
     classify_log_page,
     parse_log_header,
     parse_log_page,
@@ -241,6 +245,148 @@ def test_borehole_depth_axis_not_poisoned_by_rl_column():
     assert depths == sorted(depths)
 
 
+# ---------- _depth_calibration hardening: generic outlier rejection + validation ----------
+#
+# The two regressions above were each caught only because a symptom
+# happened to be visible - neither is reproducible with real corpus data
+# any more (both windows are already fixed), so the paths these tests
+# exercise (recovering a fit despite an outlier, failing closed under
+# heavy contamination, and the <=2-tick case residuals can't diagnose at
+# all) use synthetic word dicts, the same "real corpus where it exists,
+# synthetic for paths it doesn't happen to exercise" convention already
+# used in rock_parameters' test suite. _depth_calibration takes already-
+# extracted word dicts, not a PDF, so this doesn't run into this file's
+# usual objection to synthetic fixtures (reportlab can't reproduce
+# pdfplumber's real column layout - that's irrelevant here, since no PDF
+# is involved at this level).
+
+
+def _tick_words(ticks, x0=130.0):
+    return [{"top": top, "x0": x0, "x1": x0 + 5, "text": f"{value:.1f}"} for top, value in ticks]
+
+
+def test_outlier_rejection_budget_and_total_depth_margin_are_the_documented_values():
+    # Locks in the two constants' rationale (see their comments in
+    # borehole_log.py) as an actual assertion, not just a comment someone
+    # could silently drift out of sync with the code: 2 rejections is
+    # deliberately small (a rescue for a straggler or two, not a badly-
+    # scoped window), and 15.0m was raised from an initial, too-tight 3.0
+    # after real corpus data (Heathcote DBH01) showed a legitimate axis
+    # overshoot of 7.9m past total_depth_m.
+    assert _MAX_OUTLIER_REJECTIONS == 2
+    assert _TOTAL_DEPTH_MARGIN_M == 15.0
+
+
+def test_depth_calibration_recovers_a_single_stray_outlier_tick():
+    # 9 genuine, perfectly-spaced ticks (0.0-8.0m) plus one wild point
+    # that doesn't belong (mimicking a stray non-depth token landing in
+    # the window) - the fit should reject and drop the outlier, not
+    # refuse to calibrate a page that's otherwise fine.
+    genuine = [(210.0 + i * 70.85, float(i)) for i in range(9)]
+    words = _tick_words(genuine + [(400.0, 450.0)])
+    depth_of = _depth_calibration(words, "Cored Borehole", total_depth_m="9.0")
+    assert depth_of is not None
+    assert depth_of(210.0) == pytest.approx(0.0, abs=0.05)
+    assert depth_of(774.5) == pytest.approx(8.0, abs=0.05)
+
+
+def test_depth_calibration_fails_closed_when_contamination_exceeds_rejection_budget():
+    # 8 genuine ticks plus 8 RL-like contaminants (the actual scale of
+    # the historical PRUP_BH01 case) - far more bad points than
+    # _MAX_OUTLIER_REJECTIONS allows to trim. Must return None (the
+    # existing, safe "uncalibrated" fallback) rather than keep deleting
+    # points until something happens to fit.
+    genuine = [(207.6 + i * 70.85, float(i)) for i in range(8)]
+    contaminants = [(221.7 + i * 70.85, 311.0 - i) for i in range(8)]
+    words = _tick_words(genuine + contaminants)
+    assert _depth_calibration(words, "Cored Borehole", total_depth_m="9.0") is None
+
+
+def test_depth_calibration_rejects_an_implausible_two_tick_fit():
+    # Exactly two points always fit a perfect line (R^2=1, residual=0) -
+    # residual/R^2 rejection literally cannot distinguish a genuine pair
+    # from a coincidental one. This is exactly why the output-side
+    # total_depth_m check exists: two points implying depths of 500m/600m
+    # on an 9m-deep hole must still be rejected.
+    words = _tick_words([(210.0, 500.0), (280.85, 600.0)])
+    assert _depth_calibration(words, "Cored Borehole", total_depth_m="9.0") is None
+
+
+def test_depth_calibration_accepts_a_valid_two_tick_fit():
+    # The mirror case: two genuine-looking points within a plausible
+    # range must still calibrate - the total_depth_m check is a sanity
+    # backstop, not a reason to require 3+ ticks.
+    words = _tick_words([(210.0, 0.0), (280.85, 1.0)])
+    depth_of = _depth_calibration(words, "Cored Borehole", total_depth_m="9.0")
+    assert depth_of is not None
+    assert depth_of(210.0) == pytest.approx(0.0, abs=0.01)
+
+
+def test_depth_calibration_accepts_legitimate_axis_overshoot_past_total_depth():
+    # Real corpus case, not synthetic: Heathcote.pdf p26 (DBH01) prints a
+    # depth-axis grid running 0-8m even though the hole's own printed
+    # Total Depth is 1.8m - the axis is a fixed template feature, not
+    # clipped to where the hole actually terminated. This must still
+    # calibrate; a tight total_depth_m bound would wrongly reject it
+    # (this exact page was the false-positive that fixed
+    # _TOTAL_DEPTH_MARGIN_M at 15.0, up from an initial too-tight 3.0).
+    result = _parse_page("Heathcote.pdf", 26)
+    assert result["header"]["hole_id"] == "DBH01"
+    assert result["header"]["total_depth_m"] == "1.8"
+    assert result["depth_axis_calibrated"] is True
+
+
+def test_depth_calibration_validation_alone_catches_the_historical_rl_bug():
+    # Proves the R^2/residual + total_depth_m/monotonicity validation is
+    # a genuine second line of defense, not just theoretical - reproduces
+    # the exact historical failure using real PRUP_BH01 p1 word data
+    # under the OLD, pre-fix (145-165) window (COLUMN_RANGES["depth"],
+    # still used as-is for Pavement Dip's fallback, coincidentally equal
+    # to the old Borehole window). Even with the contamination let all
+    # the way through, the validation must still reject it - the window
+    # narrowing and this validation are independent safety nets, not one
+    # relying on the other having already fixed things.
+    with pdfplumber.open(REFERENCE_DIR / "PRUP_BH Logs.pdf") as pdf:
+        words = pdf.pages[0].extract_words(use_text_flow=False, keep_blank_chars=False)
+    assert COLUMN_RANGES["depth"] == (145, 165), "test assumes this is still the old, wider window"
+    depth_of = _depth_calibration(words, log_type="Pavement Dip", total_depth_m="20.32")
+    assert depth_of is None
+
+
+# ---------- Borehole two-digit continuation-sheet ticks (split-range window) ----------
+
+
+def test_continuation_sheet_two_digit_ticks_now_calibrate():
+    # Alex Canal p11 (BH06's sheet 2, covering ~10-20m) prints only
+    # two-digit depth ticks - none of the single-digit ones a (147,165)
+    # window alone would catch. Previously came back uncalibrated
+    # entirely (0 usable ticks); the added (144.0, 145.5) sub-range picks
+    # up the two-digit cluster (x0=144.5, and 144.8 for "11.0"
+    # specifically - a font-kerning quirk, still the same column).
+    result = _parse_page("Alex Canal.pdf", 11)
+    assert result["header"]["hole_id"] == "BH06"
+    assert result["depth_axis_calibrated"] is True
+    depths = [s["depth_from_m"] for s in result["strata"] if s["depth_from_m"] is not None]
+    assert depths
+    assert all(9 <= d <= 21 for d in depths)
+    assert depths == sorted(depths)
+
+
+def test_prup_rl_contamination_still_excluded_after_split_range_widen():
+    # The split-range window touches the same "Borehole" log_type PRUP_BH01
+    # p1 uses (see test_borehole_depth_axis_not_poisoned_by_rl_column
+    # above) - confirms widening for the two-digit cluster didn't
+    # reopen the RL gap the original fix closed. The two sub-ranges are
+    # disjoint by design (144.0-145.5 and 147-165, leaving 146.3 excluded
+    # in between); this is the real-corpus proof that holds in practice,
+    # not just in the range arithmetic.
+    result = _parse_page("PRUP_BH Logs.pdf", 1)
+    depths = [s["depth_from_m"] for s in result["strata"] if s["depth_from_m"] is not None]
+    assert depths
+    assert all(0 <= d <= 20.32 for d in depths)
+    assert depths == sorted(depths)
+
+
 def test_defect_entries_are_depth_tagged_and_typed():
     result = _parse_page("PRUP_BH Logs.pdf", 3)
     entries = result["defect_entries"]
@@ -316,6 +462,43 @@ def test_depth_axis_calibrated_for_test_pit():
     assert result["header"]["log_type"] == "Test Pit"
     assert result["depth_axis_calibrated"] is True
     assert result["strata"][0]["depth_from_m"] is not None
+
+
+def test_depth_calibration_sweep_across_full_corpus():
+    # Every log page, every one of the 4 log types (not just the 2 with a
+    # known incident history) - both hardening layers plus the split-
+    # range window together should now leave every real page correctly
+    # calibrated: 0 pages falling back to uncalibrated, 0 pages producing
+    # depths that violate the header's own printed Total Depth or aren't
+    # monotonic down the page. This is the number that would have caught
+    # all three bugs found in this area (MC 450, RL bleed, the two-digit
+    # continuation-sheet gap) without needing to already know where to
+    # look.
+    checked = 0
+    uncalibrated = 0
+    for path in REFERENCE_DIR.glob("*.pdf"):
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                result = parse_log_page(page)
+                if result.get("page_type") != PAGE_TYPE_LOG:
+                    continue
+                header = result.get("header") or {}
+                checked += 1
+
+                if not result.get("depth_axis_calibrated"):
+                    uncalibrated += 1
+                    continue
+
+                total_depth_m = header.get("total_depth_m")
+                total_depth_m = float(total_depth_m) if total_depth_m is not None else None
+                bound = (total_depth_m + 20) if total_depth_m is not None else 200
+
+                depths = [s["depth_from_m"] for s in result["strata"] if s["depth_from_m"] is not None]
+                assert all(-0.5 <= d <= bound for d in depths), (path.name, header.get("hole_id"), depths)
+                assert depths == sorted(depths), (path.name, header.get("hole_id"), depths)
+
+    assert checked > 400
+    assert uncalibrated == 0
 
 
 @pytest.mark.parametrize(

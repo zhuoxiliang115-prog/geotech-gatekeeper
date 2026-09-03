@@ -87,14 +87,41 @@ _DCP_FULL_RE = re.compile(r"^\d+$")
 # ticks). Confirmed on PRUP_BH01 page 1: real depths 0-8m calibrated out
 # to bogus 154-160m instead, silently breaking depth-sort order for that
 # sheet - only surfaced once the Design Parameters UI's depth-sorted merge
-# made the wrong ordering visible. (147, 165) sits in the 1pt gap between
-# RL's 146.3 and genuine depth's 147.3, verified against every "Borehole"
-# page in the reference corpus, not just PRUP's.
+# made the wrong ordering visible.
+#
+# Each log_type maps to a TUPLE OF (lo, hi) sub-ranges, not one - because
+# "Borehole" genuinely needs two disjoint ones. A different Borehole
+# template variant (Alex Canal, most of Heathcote/WSM - no RL column at
+# all) prints its genuine ticks right-aligned, so a two-digit depth
+# ("10.0"-"20.0"+) sits ~2.5-3pt further left (x0=144.5, one specific
+# value - "11.0" - lands at 144.8, a font-kerning quirk, not a separate
+# column) than a one-digit depth (x0=147.3). A single (147, 165) window
+# excludes that left cluster entirely, so any sheet whose visible ticks
+# are ALL two-digit (a continuation sheet covering, say, 11-20m, with the
+# 0-10m sheet's single-digit ticks on the previous page) gets zero usable
+# ticks and comes back uncalibrated - confirmed on 7 real pages (Alex
+# Canal p11/15/34, Heathcote p43/52/60, WSM p12).
+#
+# The obvious fix - just lower (147,165)'s lower bound to ~144 - was
+# checked and rejected: 144.5 sits only 1.8pt below the RL contaminant at
+# 146.3, and a single contiguous range can't include one without the
+# other. Measured directly: doing that would reintroduce RL contamination
+# on 46 real Borehole pages across PRUP_BH/PRUP_HA/Chowder Bay HA*/
+# Heathcote DTP* - each with 4-8 RL values simultaneously in-window, far
+# past what _MAX_OUTLIER_REJECTIONS can trim, breaking pages that
+# currently calibrate correctly. Two disjoint ranges - (144.0, 145.5) for
+# the two-digit cluster, (147, 165) for everything already covered -
+# capture the missing ticks while leaving the 0.8pt gap around 146.3
+# (145.5 to 147.0) exactly where it needs to be to keep excluding RL.
 _DEPTH_COLUMN_RANGES_BY_TYPE = {
-    "Cored Borehole": (125, 141),
-    "Test Pit": (183, 197),
-    "Borehole": (147, 165),
+    "Cored Borehole": ((125, 141),),
+    "Test Pit": ((183, 197),),
+    "Borehole": ((144.0, 145.5), (147, 165)),
 }
+
+
+def _depth_tick_ranges(log_type):
+    return _DEPTH_COLUMN_RANGES_BY_TYPE.get(log_type, (COLUMN_RANGES["depth"],))
 
 # Cored Borehole pages have no MOISTURE CONDITION / CONSISTENCY-RELATIVE
 # DENSITY columns at all - they use WEATHERING/TCR/INFERRED STRENGTH/DEFECT
@@ -243,32 +270,65 @@ def _column_words(words, key):
     return [w for w in words if lo <= w["x0"] <= hi]
 
 
-def _depth_calibration(words, log_type):
-    """Fits a linear map from page-y (top) to borehole depth (m) using the
-    depth-axis tick labels (0.0, 1.0, 2.0, ...). Falls back to None if
-    fewer than two usable ticks are found, since a page can't be
-    calibrated off a single point.
+# --- _depth_calibration's outlier/validation thresholds ---
+#
+# Two real bugs so far both had the same shape: a stray non-depth numeric
+# token (a drill rig model number; an adjacent RL column's values) landed
+# inside the per-log-type x0 window and got fitted as if it were a genuine
+# tick, badly distorting the line. Each was only caught because a symptom
+# happened to be visible (garbage depths sorting to the wrong place) - the
+# window itself has no way to notice contamination, and narrowing it is a
+# per-incident patch, not a structural fix. These thresholds are the
+# structural fix: they don't care which column the stray point came from
+# or what log_type the page is, so Pavement Dip and Test Pit (never
+# individually audited, unlike Cored Borehole/Borehole) get the same
+# protection without needing their own incident first.
+#
+# The thresholds themselves come from measuring both failure modes
+# directly against the reference corpus, not from guessing a number that
+# feels safe:
+#   - Every genuinely clean page's fit (all 408 log pages, all 4 types,
+#     post both column-range fixes): R^2 >= 0.9999999999999755, max
+#     |residual| <= 5.8e-7 m. These are vector-drawn PDF ticks - a clean
+#     fit isn't "very good," it's exact to float precision, because the
+#     axis really is perfectly linear.
+#   - Re-running the historical PRUP_BH01 p1 RL-contamination case with
+#     its pre-fix (wider) window: R^2 = 0.0034, max |residual| = 169 m.
+#   - _MIN_R2 (0.999) and _MAX_RESIDUAL_M (0.5) both sit many orders of
+#     magnitude from the clean noise floor and comfortably below the
+#     contaminated case - there's no tuning-to-two-examples risk here,
+#     the gap is enormous in both directions.
+_MIN_R2 = 0.999
+_MAX_RESIDUAL_M = 0.5
+# Small and deliberate: this rejects a straggler or two that slips past a
+# reasonably-scoped column window, it does not rescue a badly-scoped one.
+# If more points than this are bad, the window (or the page) has a
+# structural problem outlier-trimming shouldn't paper over - fail closed
+# (return None -> the existing, already-correct "uncalibrated" fallback)
+# rather than silently keep deleting data until something fits.
+_MAX_OUTLIER_REJECTIONS = 2
+# Slack beyond the header's own printed Total Depth. Not a small
+# rounding allowance: the printed depth-axis GRID is a fixed template
+# feature that isn't clipped to where the hole actually terminates, so on
+# a hole's last (or a continuation) sheet the axis legitimately keeps
+# printing ticks past total_depth_m - measured directly across the
+# reference corpus, the worst real case overshoots by 7.9 m (Heathcote
+# DBH01: total_depth_m=1.8, axis ticks run to 8.0). 15.0 clears that with
+# real margin while staying two orders of magnitude below what actual
+# contamination produces (the historical PRUP_BH01 case reached 160 m) -
+# this check exists to catch "wildly implausible," not to be a tight
+# bound, since R^2/residual rejection above already handles small-scale
+# contamination whenever there are enough points to compute them; this is
+# specifically the backstop for the <=2-tick case where residuals can't
+# help at all (any two points fit a perfect line).
+_TOTAL_DEPTH_MARGIN_M = 15.0
 
-    The DEPTH column sits at a different x-position for Cored Borehole and
-    Test Pit pages than for Borehole/Pavement Dip - see
-    _DEPTH_COLUMN_RANGES_BY_TYPE. On Cored Borehole pages specifically,
-    that x-range (125-141) sits close enough to the header block that a
-    plain numeric token from the drill rig's model name (e.g. "Drill Rig:
-    Commachio MC 450" - "450" alone, x0=134) can land inside it and get
-    mistaken for a tick - confirmed on 91 of 169 Cored Borehole pages in
-    the corpus (MC 450/MC 305/MC 205 rig models), badly distorting the
-    linear fit since it's one wild outlier among the ~9 real ticks. The
-    header block is always above top=200 (every other extraction in this
-    module already draws that same line), so ticks are only collected
-    below it."""
-    lo, hi = _DEPTH_COLUMN_RANGES_BY_TYPE.get(log_type, COLUMN_RANGES["depth"])
-    ticks = []
-    for w in words:
-        if w["top"] > 200 and lo <= w["x0"] <= hi and _TICK_VALUE_RE.match(w["text"]):
-            ticks.append((w["top"], float(w["text"])))
-    if len(ticks) < 2:
-        return None
 
+def _ols_fit(ticks):
+    """Plain least-squares fit of depth (m) against page-y (top), plus the
+    diagnostics (R^2, per-point residuals) _depth_calibration uses to
+    decide whether to trust it. Returns None if the ticks are degenerate
+    (all at the same top)."""
     n = len(ticks)
     mean_x = sum(t for t, _ in ticks) / n
     mean_y = sum(v for _, v in ticks) / n
@@ -278,7 +338,89 @@ def _depth_calibration(words, log_type):
         return None
     slope = num / den
     intercept = mean_y - slope * mean_x
-    return lambda top: round(slope * top + intercept, 2)
+    residuals = [v - (slope * t + intercept) for t, v in ticks]
+    ss_res = sum(r * r for r in residuals)
+    ss_tot = sum((v - mean_y) ** 2 for _, v in ticks)
+    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    return {"slope": slope, "intercept": intercept, "residuals": residuals, "r2": r2}
+
+
+def _depth_calibration(words, log_type, total_depth_m=None):
+    """Fits a linear map from page-y (top) to borehole depth (m) using the
+    depth-axis tick labels (0.0, 1.0, 2.0, ...). Falls back to None if
+    fewer than two usable ticks are found, since a page can't be
+    calibrated off a single point - or if no fit can be made to pass the
+    validation below, since a page that can't be trusted should come back
+    uncalibrated (depth_from_m: None throughout, already the existing,
+    correct behaviour for "not enough ticks") rather than silently wrong.
+
+    The DEPTH column sits at a different x-position per log_type - see
+    _DEPTH_COLUMN_RANGES_BY_TYPE - which is a coarse first-pass filter,
+    not a guarantee: it's exactly how both known contamination bugs got
+    in (a drill rig model number on Cored Borehole pages; an adjacent RL
+    column on Borehole pages), each only caught because its symptom
+    happened to be visible. What follows is a second, page-type-agnostic
+    layer that doesn't depend on knowing which column or page type is at
+    fault:
+
+    1. Input side - iterative outlier rejection. Fit the ticks collected
+       so far; if the fit's R^2 or worst residual falls outside
+       _MIN_R2/_MAX_RESIDUAL_M, drop the single worst-residual point and
+       refit, up to _MAX_OUTLIER_REJECTIONS times.
+    2. Output side - sanity-check the accepted fit itself: depth must
+       increase down the page (positive slope), and every included
+       tick's value must be non-decreasing in top order and within
+       [-0.5, total_depth_m + _TOTAL_DEPTH_MARGIN_M] when the header's
+       own printed Total Depth is available (it is on every page in the
+       reference corpus). This catches what residuals alone can't: with
+       only two ticks, any two points fit a perfect line (R^2=1,
+       residual=0) whether or not either one is genuine - total_depth_m
+       and monotonicity are the only signal left in that case.
+    """
+    ranges = _depth_tick_ranges(log_type)
+    ticks = []
+    for w in words:
+        if (
+            w["top"] > 200
+            and any(lo <= w["x0"] <= hi for lo, hi in ranges)
+            and _TICK_VALUE_RE.match(w["text"])
+        ):
+            ticks.append((w["top"], float(w["text"])))
+
+    depth_bound = None
+    if total_depth_m is not None:
+        try:
+            depth_bound = float(total_depth_m) + _TOTAL_DEPTH_MARGIN_M
+        except ValueError:
+            depth_bound = None
+
+    for _ in range(_MAX_OUTLIER_REJECTIONS + 1):
+        if len(ticks) < 2:
+            return None
+        fit = _ols_fit(ticks)
+        if fit is None:
+            return None
+
+        ticks_by_top = sorted(ticks)
+        monotonic = all(
+            ticks_by_top[i][1] <= ticks_by_top[i + 1][1] for i in range(len(ticks_by_top) - 1)
+        )
+        in_bounds = depth_bound is None or all(-0.5 <= v <= depth_bound for _, v in ticks)
+
+        if (
+            fit["r2"] >= _MIN_R2
+            and max(abs(r) for r in fit["residuals"]) <= _MAX_RESIDUAL_M
+            and fit["slope"] > 0
+            and monotonic
+            and in_bounds
+        ):
+            slope, intercept = fit["slope"], fit["intercept"]
+            return lambda top: round(slope * top + intercept, 2)
+
+        worst_idx = max(range(len(ticks)), key=lambda i: abs(fit["residuals"][i]))
+        ticks.pop(worst_idx)
+
+    return None
 
 
 def _paragraphs_by_gap(rows):
@@ -614,7 +756,7 @@ def parse_log_page(page) -> dict:
 
     words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
     header = parse_log_header(text)
-    depth_of = _depth_calibration(words, header["log_type"])
+    depth_of = _depth_calibration(words, header["log_type"], header.get("total_depth_m"))
 
     result["header"] = header
     result["depth_axis_calibrated"] = depth_of is not None
