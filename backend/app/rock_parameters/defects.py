@@ -60,7 +60,7 @@ def compute_defect_spacing(defect_entries: list, depth_from_m: float, depth_to_m
         {
             "natural_defects": [...],           # in-window, natural type
             "artifact_count_excluded": int,     # MB/DL/DB/HB, excluded
-            "unrecognised_types": [str, ...],   # e.g. "CZ" - excluded, flagged
+            "unrecognised_types": [str, ...],   # a genuinely unknown code - excluded, flagged
             "stated_spacings_mm": [(lo, hi), ...],
             "computed_gaps_mm": [int, ...],
         }

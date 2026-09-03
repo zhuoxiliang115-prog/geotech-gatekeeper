@@ -199,6 +199,22 @@ def test_seam_content_flags_without_blocking_classification():
     )
 
 
+def test_seam_content_recognises_crushed_zone():
+    # CZ (Crushed Zone) is real corpus data (Heathcote.pdf DBH39, page 91,
+    # depths 6.47m and 7.48m: "CZ, 30 mm thick") but every real window it
+    # falls in also has an independent clay-infill defect, which would
+    # trigger the seam-content warning on its own - not a clean way to
+    # isolate CZ's own contribution. Synthetic here so the assertion is
+    # actually testing CZ, not coincidentally passing because of something
+    # else nearby.
+    stratum = {"text": "SANDSTONE: fine grained, grey.", "depth_from_m": 5.0}
+    readings = [{"type": "ucs", "value_mpa": 30.0, "depth_m": 5.1}]
+    defects = [{"depth_from_m": 5.2, "depth_to_m": 5.2, "type": "CZ", "text": "CZ, 30 mm thick"}]
+    result = classify_rock_stratum(stratum, 6.0, readings, defects)
+    assert result["classified"] is True
+    assert any("seam content present" in w for w in result["warnings"])
+
+
 # ---------- Shale Class IV/V shared-UCS-floor tie (synthetic - not in this corpus) ----------
 
 

@@ -71,13 +71,32 @@ def test_compute_defect_spacing_excludes_drilling_artifacts():
 
 
 def test_compute_defect_spacing_flags_unrecognised_type_without_using_it():
+    # "QX" is a fictional stand-in for a genuinely unrecognised code -
+    # "CZ" used to serve this role in this test until its meaning
+    # (Crushed Zone) was confirmed and it moved to rules.VALID_DEFECT_TYPES;
+    # see test_compute_defect_spacing_includes_crushed_zone_as_natural
+    # below for CZ's own, now-real, coverage.
     entries = [
         _entry(1.0, "P", "P, 10°, RF, PR, CN"),
-        _entry(1.1, "CZ", "CZ, 30 mm thick"),
+        _entry(1.1, "QX", "QX, 30 mm thick"),
     ]
     result = compute_defect_spacing(entries, 0.0, 2.0)
-    assert result["unrecognised_types"] == ["CZ"]
-    assert len(result["natural_defects"]) == 1  # CZ excluded, not guessed
+    assert result["unrecognised_types"] == ["QX"]
+    assert len(result["natural_defects"]) == 1  # QX excluded, not guessed
+
+
+def test_compute_defect_spacing_includes_crushed_zone_as_natural():
+    # Real corpus data: Heathcote.pdf DBH39 (page 91) has two genuine CZ
+    # (Crushed Zone) entries - confirmed natural rock-mass damage, the
+    # same family as CS (Crushed Seam), not a drilling artifact and not
+    # unrecognised.
+    entries = [
+        _entry(6.47, "CZ", "CZ, 30 mm thick"),
+        _entry(7.48, "CZ", "CZ, 30 mm thick"),
+    ]
+    result = compute_defect_spacing(entries, 6.0, 8.0)
+    assert result["unrecognised_types"] == []
+    assert len(result["natural_defects"]) == 2
 
 
 def test_compute_defect_spacing_prefers_stated_over_computed_per_entry():

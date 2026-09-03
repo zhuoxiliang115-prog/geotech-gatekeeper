@@ -324,7 +324,15 @@ def check_weathering_symbols(strata: list) -> list:
 # §3.1 / §3.15: defect description field order/format + defect symbols
 # ---------------------------------------------------------------------------
 
-VALID_DEFECT_TYPES = {"P", "J", "S", "SZ", "MB", "DL", "DB", "HB", "SS", "CS", "IS", "EW"}
+# "CZ" (Crushed Zone) isn't in the AECOM §3.15 table captured in
+# reference/borehole-log-standard.md - confirmed by the corpus sweep
+# (2 real instances, Heathcote.pdf DBH39: "CZ, 30 mm thick") as a genuine,
+# undocumented-here code, left unrecognised (safely excluded from spacing/
+# seam-content, not guessed at) until confirmed. Meaning since confirmed:
+# Crushed Zone, natural rock-mass damage - the same family as CS (Crushed
+# Seam), just describing a zone rather than a discrete seam - grouped with
+# it accordingly below and in classification.py's _SEAM_TYPE_CODES.
+VALID_DEFECT_TYPES = {"P", "J", "S", "SZ", "MB", "DL", "DB", "HB", "SS", "CS", "CZ", "IS", "EW"}
 VALID_PLANARITY = {"PR", "CU", "UN", "ST", "IR"}
 VALID_ROUGHNESS = {"VR", "RF", "SM", "PO", "SL"}
 VALID_INFILL = {"CN", "SN", "VN", "CT", "OP", "CA", "FE", "CH", "QZ"}

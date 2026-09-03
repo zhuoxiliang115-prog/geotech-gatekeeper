@@ -66,8 +66,11 @@ _SHALE_SPACING_BANDS = [(1, 600), (2, 200), (3, 60), (4, 20)]
 # treated as seam content worth flagging. This is a deliberately
 # inclusive heuristic (false positives just mean an unnecessary manual
 # check; false negatives mean a real seam gets missed) - not a percentage
-# computation, which is explicitly deferred.
-_SEAM_TYPE_CODES = {"CS", "SS", "IS", "EW"}
+# computation, which is explicitly deferred. CZ (Crushed Zone) is grouped
+# with CS (Crushed Seam) here - same crushed-rock damage, a zone rather
+# than a discrete seam - see rules.py's VALID_DEFECT_TYPES for how its
+# meaning was confirmed.
+_SEAM_TYPE_CODES = {"CS", "CZ", "SS", "IS", "EW"}
 _CLAY_INFILL_RE = re.compile(r"\bCT\b|\bclay\b", re.IGNORECASE)
 
 # UCS ~ 20 x Is(50) - not an independently-sourced conversion factor, but

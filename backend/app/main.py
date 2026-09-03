@@ -259,10 +259,20 @@ async def rock_parameters(file: UploadFile = File(...)):
     design_table and hoek_brown_table, kept as two separate parameter sets
     since they aren't interchangeable.
 
-    Only Cored Borehole pages are processed - other log types never carry
-    Sandstone/Shale strata, so classify_rock_stratum() would just report
-    "no recognisable rock type" for every one of their strata; skipping
-    them here keeps the response to what this feature actually covers.
+    Only Cored Borehole pages are processed. Other log types occasionally
+    do carry a Sandstone/Shale stratum too - a standard (non-cored)
+    Borehole, Test Pit, or Pavement Dip hitting refusal on rock near the
+    surface logs it in soil-style terms before terminating (e.g. "XW,
+    soil strength... Terminated at 0.75 m. Refusal on inferred top of
+    rock") - confirmed against the full reference corpus: 23 real
+    instances across Test Pit/Borehole/Pavement Dip pages. These are
+    deliberately out of scope for this pass, not missed: none of those
+    methods run point-load/UCS testing, so classify_rock_stratum() would
+    almost always report "no UCS or Is(50) reading nearby" for them
+    anyway: routing them through wouldn't add classified strata, only
+    unclassified ones, so skipping them here keeps the response to what
+    this feature actually covers rather than padding it with certain
+    non-classifications.
 
     A stratum that can't be confidently classified (no rock type text
     recognised, an out-of-scope rock type like Claystone, or no UCS/Is(50)

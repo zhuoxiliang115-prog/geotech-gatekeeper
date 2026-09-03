@@ -421,9 +421,14 @@ def test_defect_entries_keep_every_type_including_artifacts_and_unrecognised():
     # borehole_log.py doesn't decide natural-vs-artifact-vs-unrecognised -
     # that's rock_parameters/defects.py's job. Every entry survives here,
     # typed, so nothing is silently lost before that decision is made.
+    # "CZ" (Crushed Zone) happens to be the real example on this page -
+    # recognised as a natural/seam-type code as of rules.VALID_DEFECT_TYPES,
+    # but this extraction layer's job (preserving every raw type token) is
+    # unaffected either way; it's tested for its own sake here, not as an
+    # unrecognised-type example.
     result = _parse_page("Heathcote.pdf", 91)
     types = {e["type"] for e in result["defect_entries"]}
-    assert "CZ" in types  # unrecognised - not in rules.VALID_DEFECT_TYPES
+    assert "CZ" in types
 
 
 def test_defect_entries_empty_on_soil_log_types():
